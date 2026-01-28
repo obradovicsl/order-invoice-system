@@ -9,6 +9,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { X } from 'lucide-react';
 import type { Order, OrderItem } from '../../services/ordersService';
 import { catalogService } from '../../services/catalogService';
 import type { Product } from '../../services/catalogService';
@@ -26,7 +27,6 @@ export const CreateOrderModal = ({
   onSubmit,
   isLoading = false,
 }: CreateOrderModalProps) => {
-  const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [items, setItems] = useState<OrderItem[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
@@ -52,9 +52,6 @@ export const CreateOrderModal = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!customerId.trim()) {
-      newErrors.customerId = 'Customer ID is required';
-    }
     if (!customerName.trim()) {
       newErrors.customerName = 'Customer Name is required';
     }
@@ -73,7 +70,7 @@ export const CreateOrderModal = ({
     // Add empty item row
     setItems((prev) => [
       ...prev,
-      { productCode: '', quantity: 1 },
+      { productId: '', quantity: 1 },
     ]);
   };
 
@@ -83,11 +80,30 @@ export const CreateOrderModal = ({
 
   const handleItemChange = (
     index: number,
-    field: 'productCode' | 'quantity',
+    field: 'productId' | 'quantity',
     value: string | number,
   ) => {
     setItems((prev) => {
       const newItems = [...prev];
+
+      // For quantity validation, use the current item's productId
+      if (field === 'quantity') {
+        const quantity = parseInt(String(value));
+        const currentItem = newItems[index];
+
+        // Only validate if a product is selected
+        if (currentItem.productId) {
+          const selectedProduct = availableProducts.find(
+            (p) => p.id === currentItem.productId || p.code === currentItem.productId
+          );
+          const maxQuantity = selectedProduct?.stockQuantity || 0;
+
+          if (quantity > maxQuantity) {
+            return prev;
+          }
+        }
+      }
+
       newItems[index] = {
         ...newItems[index],
         [field]: field === 'quantity' ? parseInt(String(value)) : value,
@@ -103,7 +119,6 @@ export const CreateOrderModal = ({
     }
 
     const order: Order = {
-      customerId,
       customerName,
       items,
     };
@@ -111,7 +126,6 @@ export const CreateOrderModal = ({
     try {
       await onSubmit(order);
       // Reset form
-      setCustomerId('');
       setCustomerName('');
       setItems([]);
       onClose();
@@ -128,30 +142,6 @@ export const CreateOrderModal = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Customer ID Field */}
-          <div className="space-y-2">
-            <Label htmlFor="customerId">Customer ID</Label>
-            <Input
-              id="customerId"
-              placeholder="Enter customer ID"
-              value={customerId}
-              onChange={(e) => {
-                setCustomerId(e.target.value);
-                if (errors.customerId) {
-                  setErrors((prev) => {
-                    const newErrors = { ...prev };
-                    delete newErrors.customerId;
-                    return newErrors;
-                  });
-                }
-              }}
-              disabled={isLoading}
-            />
-            {errors.customerId && (
-              <p className="text-sm text-red-500">{errors.customerId}</p>
-            )}
-          </div>
-
           {/* Customer Name Field */}
           <div className="space-y-2">
             <Label htmlFor="customerName">Customer Name</Label>
@@ -202,23 +192,23 @@ export const CreateOrderModal = ({
                   key={index}
                   className="flex gap-2 items-end border rounded p-3 bg-gray-50"
                 >
-                  {/* Product Code Select */}
+                  {/* Product ID Select */}
                   <div className="flex-1 space-y-1">
                     <Label htmlFor={`product-${index}`} className="text-xs">
-                      Product Code
+                      Product
                     </Label>
                     <select
                       id={`product-${index}`}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      value={item.productCode}
+                      value={item.productId}
                       onChange={(e) =>
-                        handleItemChange(index, 'productCode', e.target.value)
+                        handleItemChange(index, 'productId', e.target.value)
                       }
                       disabled={isLoading}
                     >
                       <option value="">Select product...</option>
                       {availableProducts.map((product) => (
-                        <option key={product.code} value={product.code}>
+                        <option key={product.id} value={product.id || product.code}>
                           {product.code} - {product.name}
                         </option>
                       ))}
@@ -234,6 +224,11 @@ export const CreateOrderModal = ({
                       id={`quantity-${index}`}
                       type="number"
                       min="1"
+                      max={
+                        availableProducts.find(
+                          (p) => p.id === item.productId || p.code === item.productId
+                        )?.stockQuantity || 0
+                      }
                       value={item.quantity}
                       onChange={(e) =>
                         handleItemChange(index, 'quantity', e.target.value)
@@ -241,18 +236,25 @@ export const CreateOrderModal = ({
                       disabled={isLoading}
                       className="text-sm"
                     />
+                    {item.productId && (
+                      <p className="text-xs text-gray-500">
+                        Max: {availableProducts.find(
+                          (p) => p.id === item.productId || p.code === item.productId
+                        )?.stockQuantity || 0}
+                      </p>
+                    )}
                   </div>
 
                   {/* Remove Button */}
-                  <Button
+                  <button
                     type="button"
-                    variant="destructive"
-                    size="sm"
                     onClick={() => handleRemoveItem(index)}
                     disabled={isLoading}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                    title="Remove product"
                   >
-                    Remove
-                  </Button>
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
 

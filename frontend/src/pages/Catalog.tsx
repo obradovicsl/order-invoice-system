@@ -47,8 +47,9 @@ export const Catalog = () => {
   const handleAddProduct = async (product: Product) => {
     try {
       setIsSubmitting(true);
-      const newProduct = await catalogService.createProduct(product);
-      setProducts((prev) => [...prev, newProduct]);
+      await catalogService.createProduct(product);
+      // Refresh the product list after creating a new product
+      await fetchProducts();
       setIsModalOpen(false);
     } catch (err) {
       const errorMessage =

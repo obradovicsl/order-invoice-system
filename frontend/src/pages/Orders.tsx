@@ -127,7 +127,6 @@ export const Orders = () => {
             <TableHeader className="bg-gray-50">
               <TableRow>
                 <TableHead className="font-semibold">Order ID</TableHead>
-                <TableHead className="font-semibold">Customer ID</TableHead>
                 <TableHead className="font-semibold">Customer Name</TableHead>
                 <TableHead className="font-semibold text-right">
                   Total Price
@@ -142,7 +141,6 @@ export const Orders = () => {
               {orders.map((order) => (
                 <TableRow key={order.id} className="hover:bg-gray-50">
                   <TableCell className="font-medium">{order.id}</TableCell>
-                  <TableCell>{order.customerId}</TableCell>
                   <TableCell>{order.customerName}</TableCell>
                   <TableCell className="text-right">
                     {order.totalPrice
