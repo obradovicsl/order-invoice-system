@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// ItemResponse predstavlja DTO response za stavku kataloga
 type ItemResponse struct {
 	ID            string  `json:"id"`
 	Code          string  `json:"code"`
@@ -18,14 +17,12 @@ type ItemResponse struct {
 	UpdatedAt     string  `json:"updated_at"`
 }
 
-// ItemsResponse predstavlja DTO response za listu stavki
 type ItemsResponse struct {
 	Data      []ItemResponse `json:"data"`
 	Count     int            `json:"count"`
 	Timestamp string         `json:"timestamp"`
 }
 
-// MapItemToResponse mapira repository Item na ItemResponse
 func MapItemToResponse(item repository.Item) ItemResponse {
 	price := ""
 	if item.Price.Valid {
@@ -47,7 +44,6 @@ func MapItemToResponse(item repository.Item) ItemResponse {
 	}
 }
 
-// MapItemsToResponse mapira listu repository Item na ItemsResponse
 func MapItemsToResponse(items []repository.Item) ItemsResponse {
 	responses := make([]ItemResponse, 0, len(items))
 	for _, item := range items {

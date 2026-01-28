@@ -14,6 +14,7 @@ CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     user_name VARCHAR(100) NOT NULL,
+    order_price NUMERIC(10, 2) NOT NULL DEFAULT 0,
     status order_status NOT NULL DEFAULT 'PENDING',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -24,6 +25,7 @@ CREATE TABLE order_item (
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     item_id UUID NOT NULL REFERENCES items(id),
     quantity INT NOT NULL check(quantity > 0),
+    price_at_order NUMERIC(10, 2) NOT NULL check(price_at_order >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 

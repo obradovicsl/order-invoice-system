@@ -1,4 +1,5 @@
+DROP TABLE IF EXISTS order_item;
+
 DROP TABLE IF EXISTS items;
 DROP TABLE IF EXISTS orders;
 DROP TYPE IF EXISTS order_status;
-DROP TABLE IF EXISTS order_item;

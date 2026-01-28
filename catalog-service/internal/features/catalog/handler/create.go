@@ -3,21 +3,21 @@ package handler
 import (
 	"catalog-service/internal/repository"
 	"encoding/json"
+	"fmt"
+	"math/big"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// CreateCatalogItemRequest predstavlja request za kreiranje stavke
 type CreateCatalogItemRequest struct {
 	Code          string  `json:"code"`
 	Name          string  `json:"name"`
-	Price         string  `json:"price"`
+	Price         float64 `json:"price"`
 	StockQuantity int32   `json:"stock_quantity"`
 	ImageUrl      *string `json:"image_url,omitempty"`
 }
 
-// CreateCatalogItem je handler za POST /items
 func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Request) {
 	var req CreateCatalogItemRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -26,12 +26,15 @@ func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Konverzija string cene u pgtype.Numeric
-	var price pgtype.Numeric
-	if err := price.Scan(req.Price); err != nil {
-		h.logger.Error("invalid price format", "price", req.Price, "error", err)
-		http.Error(w, "Invalid price format", http.StatusBadRequest)
-		return
+	priceDecimal := new(big.Float)
+	priceDecimal.SetString(fmt.Sprintf("%.2f", req.Price))
+	intValue := new(big.Int)
+	priceDecimal.Mul(priceDecimal, big.NewFloat(100)).Int(intValue)
+
+	price := pgtype.Numeric{
+		Int:   intValue,
+		Exp:   -2,
+		Valid: true,
 	}
 
 	params := repository.CreateCatalogItemParams{

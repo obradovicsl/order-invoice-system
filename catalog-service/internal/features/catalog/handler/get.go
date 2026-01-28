@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// GetAllCatalogItems je handler za GET /items
 func (h *CatalogHandler) GetAllCatalogItems(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.GetAllCatalogItems(r.Context())
 	if err != nil {
@@ -24,7 +23,6 @@ func (h *CatalogHandler) GetAllCatalogItems(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetCatalogItemByID je handler za GET /items/{id}
 func (h *CatalogHandler) GetCatalogItemByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	var id pgtype.UUID

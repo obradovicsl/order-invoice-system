@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// CatalogService definiše interfejs koji implementira servis
 type CatalogService interface {
 	CreateCatalogItem(ctx context.Context, arg repository.CreateCatalogItemParams) (repository.Item, error)
 	GetAllCatalogItems(ctx context.Context) ([]repository.Item, error)
@@ -17,13 +16,11 @@ type CatalogService interface {
 	UpdateItemQuantity(ctx context.Context, arg repository.UpdateItemQuantityParams) (repository.Item, error)
 }
 
-// Handler sadrži servis i logiku za HTTP zahtjeve
 type CatalogHandler struct {
 	service CatalogService
 	logger  *slog.Logger
 }
 
-// NewHandler kreira novi handler
 func NewHandler(service CatalogService, logger *slog.Logger) *CatalogHandler {
 	return &CatalogHandler{
 		service: service,

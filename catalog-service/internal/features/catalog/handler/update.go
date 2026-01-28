@@ -9,12 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// UpdateItemQuantityRequest predstavlja request za ažuriranje količine
 type UpdateItemQuantityRequest struct {
 	StockQuantity int32 `json:"stock_quantity"`
 }
 
-// UpdateItemQuantity je handler za PUT /items/{id}/quantity
 func (h *CatalogHandler) UpdateItemQuantity(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	var id pgtype.UUID
