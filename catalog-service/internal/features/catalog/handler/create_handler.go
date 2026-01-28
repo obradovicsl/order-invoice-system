@@ -21,6 +21,7 @@ type CreateCatalogItemRequest struct {
 func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Request) {
 	var req CreateCatalogItemRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("invalid request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -28,6 +29,7 @@ func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Reques
 	// Konverzija string cene u pgtype.Numeric
 	var price pgtype.Numeric
 	if err := price.Scan(req.Price); err != nil {
+		h.logger.Error("invalid price format", "price", req.Price, "error", err)
 		http.Error(w, "Invalid price format", http.StatusBadRequest)
 		return
 	}
@@ -42,11 +44,14 @@ func (h *CatalogHandler) CreateCatalogItem(w http.ResponseWriter, r *http.Reques
 
 	item, err := h.service.CreateCatalogItem(r.Context(), params)
 	if err != nil {
+		h.logger.Error("failed to create catalog item", "error", err)
 		http.Error(w, "Failed to create catalog item", http.StatusInternalServerError)
 		return
 	}
 
+	response := MapItemToResponse(item)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(item)
+	json.NewEncoder(w).Encode(response)
 }

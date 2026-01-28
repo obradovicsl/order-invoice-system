@@ -19,7 +19,7 @@ func NewRouter(config config.Config, catalogService *catalog.Service, logger *sl
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Route("/catalog", func(r chi.Router) {
-			cataloghandler := handler.NewHandler(catalogService)
+			cataloghandler := handler.NewHandler(catalogService, logger)
 			handler.CatalogRouter(r, cataloghandler)
 		})
 	})

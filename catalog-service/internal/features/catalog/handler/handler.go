@@ -3,6 +3,7 @@ package handler
 import (
 	"catalog-service/internal/repository"
 	"context"
+	"log/slog"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -19,12 +20,14 @@ type CatalogService interface {
 // Handler sadrži servis i logiku za HTTP zahtjeve
 type CatalogHandler struct {
 	service CatalogService
+	logger  *slog.Logger
 }
 
 // NewHandler kreira novi handler
-func NewHandler(service CatalogService) *CatalogHandler {
+func NewHandler(service CatalogService, logger *slog.Logger) *CatalogHandler {
 	return &CatalogHandler{
 		service: service,
+		logger:  logger,
 	}
 }
 

@@ -12,13 +12,16 @@ import (
 func (h *CatalogHandler) GetAllCatalogItems(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.GetAllCatalogItems(r.Context())
 	if err != nil {
+		h.logger.Error("failed to fetch catalog items", "error", err)
 		http.Error(w, "Failed to fetch catalog items", http.StatusInternalServerError)
 		return
 	}
 
+	response := MapItemsToResponse(items)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(items)
+	json.NewEncoder(w).Encode(response)
 }
 
 // GetCatalogItemByID je handler za GET /items/{id}
@@ -26,17 +29,21 @@ func (h *CatalogHandler) GetCatalogItemByID(w http.ResponseWriter, r *http.Reque
 	idStr := chi.URLParam(r, "id")
 	var id pgtype.UUID
 	if err := id.Scan(idStr); err != nil {
+		h.logger.Error("invalid item ID", "id", idStr, "error", err)
 		http.Error(w, "Invalid item ID", http.StatusBadRequest)
 		return
 	}
 
 	item, err := h.service.GetCatalogItemByID(r.Context(), id)
 	if err != nil {
+		h.logger.Error("failed to fetch catalog item", "id", id, "error", err)
 		http.Error(w, "Item not found", http.StatusNotFound)
 		return
 	}
 
+	response := MapItemToResponse(item)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(item)
+	json.NewEncoder(w).Encode(response)
 }

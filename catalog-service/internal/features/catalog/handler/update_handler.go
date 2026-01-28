@@ -19,12 +19,14 @@ func (h *CatalogHandler) UpdateItemQuantity(w http.ResponseWriter, r *http.Reque
 	idStr := chi.URLParam(r, "id")
 	var id pgtype.UUID
 	if err := id.Scan(idStr); err != nil {
+		h.logger.Error("invalid item ID", "id", idStr, "error", err)
 		http.Error(w, "Invalid item ID", http.StatusBadRequest)
 		return
 	}
 
 	var req UpdateItemQuantityRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("invalid request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -36,11 +38,14 @@ func (h *CatalogHandler) UpdateItemQuantity(w http.ResponseWriter, r *http.Reque
 
 	item, err := h.service.UpdateItemQuantity(r.Context(), params)
 	if err != nil {
+		h.logger.Error("failed to update item quantity", "id", id, "error", err)
 		http.Error(w, "Failed to update item quantity", http.StatusInternalServerError)
 		return
 	}
 
+	response := MapItemToResponse(item)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(item)
+	json.NewEncoder(w).Encode(response)
 }
