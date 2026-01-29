@@ -15,6 +15,7 @@ type OrderService interface {
 	GetAllOrders(ctx context.Context) ([]order.OrderResponse, error)
 	GetOrderByID(ctx context.Context, id string) (*order.OrderResponse, error)
 	CreateOrder(ctx context.Context, req order.CreateOrderRequest) (*order.OrderResponse, error)
+	DeleteOrderById(ctx context.Context, id string) error
 }
 
 type OrderHandler struct {
@@ -43,4 +44,5 @@ func OrderRouter(r chi.Router, handler *OrderHandler) {
 	r.Get("/", handler.GetAllOrders)
 	r.Get("/{id}", handler.GetOrderByID)
 	r.Post("/", handler.CreateOrder)
+	r.Delete("/{id}", handler.DeleteOrderById)
 }

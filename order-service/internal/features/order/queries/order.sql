@@ -27,7 +27,13 @@ SELECT
 FROM orders o
 LEFT JOIN order_item oi ON o.id = oi.order_id
 LEFT JOIN items i ON oi.item_id = i.id
+WHERE o.is_active = TRUE
 ORDER BY o.created_at DESC;
+
+-- name: DeleteOrderById :exec
+UPDATE orders  
+SET is_active = FALSE, updated_at = NOW() 
+WHERE id = $1;
 
 -- name: GetOrderByID :many
 SELECT

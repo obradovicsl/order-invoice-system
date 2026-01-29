@@ -14,7 +14,7 @@ import (
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, user_name, status, order_price)
     VALUES ($1, $2, $3, $4)
-    RETURNING id, user_id, user_name, order_price, status, created_at, updated_at
+    RETURNING id, user_id, user_name, order_price, status, is_active, created_at, updated_at
 `
 
 type CreateOrderParams struct {
@@ -38,6 +38,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.UserName,
 		&i.OrderPrice,
 		&i.Status,
+		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -77,6 +78,17 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 	return i, err
 }
 
+const deleteOrderById = `-- name: DeleteOrderById :exec
+UPDATE orders  
+SET is_active = FALSE, updated_at = NOW() 
+WHERE id = $1
+`
+
+func (q *Queries) DeleteOrderById(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteOrderById, id)
+	return err
+}
+
 const getAllOrders = `-- name: GetAllOrders :many
 SELECT
     o.id,
@@ -96,6 +108,7 @@ SELECT
 FROM orders o
 LEFT JOIN order_item oi ON o.id = oi.order_id
 LEFT JOIN items i ON oi.item_id = i.id
+WHERE o.is_active = TRUE
 ORDER BY o.created_at DESC
 `
 
@@ -287,7 +300,7 @@ const updateOrderStatus = `-- name: UpdateOrderStatus :one
 UPDATE orders
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, user_name, order_price, status, created_at, updated_at
+RETURNING id, user_id, user_name, order_price, status, is_active, created_at, updated_at
 `
 
 type UpdateOrderStatusParams struct {
@@ -304,6 +317,7 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 		&i.UserName,
 		&i.OrderPrice,
 		&i.Status,
+		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

@@ -21,6 +21,8 @@ type Repository interface {
 	GetOrderByID(ctx context.Context, id pgtype.UUID) ([]repository.GetOrderByIDRow, error)
 	UpdateItemStock(ctx context.Context, arg repository.UpdateItemStockParams) (repository.Item, error)
 
+	DeleteOrderById(ctx context.Context, id pgtype.UUID) error
+
 	// Order
 	UpdateOrderStatus(ctx context.Context, arg repository.UpdateOrderStatusParams) (repository.Order, error)
 }
@@ -56,15 +58,15 @@ type OrderItem struct {
 }
 
 type OrderResponse struct {
-	ID           pgtype.UUID        `json:"id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	UserName     string             `json:"user_name"`
-	OrderPrice   pgtype.Numeric     `json:"order_price"`
-	Status       string             `json:"status"`
-	Items        []OrderItem        `json:"items"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	DownloadURL  *string            `json:"download_url,omitempty"`
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	UserName    string             `json:"user_name"`
+	OrderPrice  pgtype.Numeric     `json:"order_price"`
+	Status      string             `json:"status"`
+	Items       []OrderItem        `json:"items"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	DownloadURL *string            `json:"download_url,omitempty"`
 }
 
 type CreateOrderItemRequest struct {
@@ -412,4 +414,26 @@ func (s *Service) generateDownloadURL(orderID string) string {
 	}
 
 	return signedURL
+}
+
+func (s *Service) DeleteOrderById(ctx context.Context, id string) error {
+	s.logger.Info("deleting order by id", "order_id", id)
+
+	var uuid pgtype.UUID
+	if err := uuid.Scan(id); err != nil {
+		s.logger.Error("invalid order ID", "id", id, "error", err)
+		return fmt.Errorf("invalid order ID")
+	}
+
+	err := s.repo.DeleteOrderById(ctx, uuid)
+	if err != nil {
+		s.logger.Error("failed to delete order from repository", "order_id", id, "error", err)
+		return err
+	}
+
+	s.logger.Info("successfully deleted order",
+		"order_id", id,
+	)
+
+	return nil
 }

@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
+	DeleteOrderById(ctx context.Context, id pgtype.UUID) error
 	GetAllOrders(ctx context.Context) ([]GetAllOrdersRow, error)
 	GetItemByID(ctx context.Context, id pgtype.UUID) (GetItemByIDRow, error)
 	GetOrderByID(ctx context.Context, id pgtype.UUID) ([]GetOrderByIDRow, error)

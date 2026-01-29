@@ -71,6 +71,7 @@ type Order struct {
 	UserName   string             `json:"user_name"`
 	OrderPrice pgtype.Numeric     `json:"order_price"`
 	Status     OrderStatus        `json:"status"`
+	IsActive   bool               `json:"is_active"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
