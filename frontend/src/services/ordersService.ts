@@ -13,6 +13,7 @@ export interface Order {
   status?: 'pending' | 'processing' | 'completed';
   totalPrice?: number;
   createdAt?: string;
+  downloadUrl?: string;
 }
 
 const ORDERS_API_URL = import.meta.env.VITE_ORDERS_API_URL;
@@ -42,9 +43,10 @@ export const ordersService = {
           productId: item.item_id,
           quantity: item.quantity,
         })),
-        status: o.status,
+        status: o.status?.toLowerCase() as 'pending' | 'processing' | 'completed' | undefined,
         totalPrice: o.order_price ? parseFloat(o.order_price) : undefined,
         createdAt: o.created_at,
+        downloadUrl: o.download_url,
       }));
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -91,9 +93,10 @@ export const ordersService = {
           productId: item.product_id,
           quantity: item.quantity,
         })),
-        status: createdOrder.status,
+        status: createdOrder.status?.toLowerCase() as 'pending' | 'processing' | 'completed' | undefined,
         totalPrice: createdOrder.order_price ? parseFloat(createdOrder.order_price) : undefined,
         createdAt: createdOrder.created_at,
+        downloadUrl: createdOrder.download_url,
       };
     } catch (error) {
       console.error('Error creating order:', error);

@@ -74,13 +74,13 @@ export const Orders = () => {
     }
   };
 
-  const handleDownloadPDF = (orderId?: string) => {
-    if (!orderId) {
-      alert('Order ID not available');
+  const handleDownloadPDF = (downloadUrl?: string) => {
+    if (!downloadUrl) {
+      alert('PDF not available yet. Please wait for the order to be processed.');
       return;
     }
-    // TODO: Implement PDF download logic
-    alert(`Downloading PDF for order ${orderId}`);
+    // Open the signed Azure Blob Storage URL in a new tab
+    window.open(downloadUrl, '_blank');
   };
 
   return (
@@ -158,10 +158,10 @@ export const Orders = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDownloadPDF(order.id)}
-                      disabled={order.status !== 'completed'}
+                      onClick={() => handleDownloadPDF(order.downloadUrl)}
+                      disabled={!order.downloadUrl}
                       title={
-                        order.status !== 'completed'
+                        !order.downloadUrl
                           ? 'PDF available only when order is completed'
                           : 'Download invoice PDF'
                       }
