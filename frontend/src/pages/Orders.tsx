@@ -11,7 +11,7 @@ import {
 import { CreateOrderModal } from '../components/modals/CreateOrderModal';
 import { ordersService } from '../services/ordersService';
 import type { Order } from '../services/ordersService';
-import { Download, ShoppingCart } from 'lucide-react';
+import { Download, ShoppingCart, Trash2 } from 'lucide-react';
 
 export const Orders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -81,6 +81,21 @@ export const Orders = () => {
     }
     // Open the signed Azure Blob Storage URL in a new tab
     window.open(downloadUrl, '_blank');
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to delete this order?')) {
+      return;
+    }
+    try {
+      await ordersService.deleteOrder(orderId);
+      setOrders((prev) => prev.filter((order) => order.id !== orderId));
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to delete order';
+      setError(errorMessage);
+      console.error('Error deleting order:', err);
+    }
   };
 
   return (
@@ -154,7 +169,7 @@ export const Orders = () => {
                       {order.status || 'Unknown'}
                     </span>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center flex gap-2 justify-center">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -167,6 +182,15 @@ export const Orders = () => {
                       }
                     >
                       <Download className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteOrder(order.id || '')}
+                      title="Delete order"
+                      className="hover:bg-red-100 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
                 </TableRow>

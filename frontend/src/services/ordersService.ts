@@ -54,6 +54,20 @@ export const ordersService = {
     }
   },
 
+  async deleteOrder(orderId: string): Promise<void> {
+    try {
+      const response = await fetch(`${ORDERS_API_URL}/${orderId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete order');
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      throw error;
+    }
+  },
+
   // Create a new order
   async createOrder(order: Order): Promise<Order> {
     try {

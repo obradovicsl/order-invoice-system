@@ -51,6 +51,7 @@ func main() {
 		cfg.Azure.BlobContainerName,
 		log,
 	)
+	
 	if err != nil {
 		log.Error("Failed to initialize blob service", "error", err)
 		os.Exit(1)
