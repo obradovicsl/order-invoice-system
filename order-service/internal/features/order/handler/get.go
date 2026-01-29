@@ -13,12 +13,13 @@ type GetAllOrdersResponse struct {
 }
 
 type GetOrderResponse struct {
-	ID         pgtype.UUID         `json:"id"`
-	UserID     pgtype.UUID         `json:"user_id"`
-	UserName   string              `json:"user_name"`
-	Status     string              `json:"status"`
-	OrderPrice float64             `json:"order_price"`
-	Items      []OrderItemResponse `json:"items"`
+	ID          pgtype.UUID         `json:"id"`
+	UserID      pgtype.UUID         `json:"user_id"`
+	UserName    string              `json:"user_name"`
+	Status      string              `json:"status"`
+	OrderPrice  float64             `json:"order_price"`
+	Items       []OrderItemResponse `json:"items"`
+	DownloadURL *string             `json:"download_url,omitempty"`
 }
 
 func (h *OrderHandler) GetAllOrders(w http.ResponseWriter, r *http.Request) {
@@ -36,12 +37,13 @@ func (h *OrderHandler) GetAllOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	for i, order := range orders {
 		resp.Orders[i] = GetOrderResponse{
-			ID:         order.ID,
-			UserID:     order.UserID,
-			UserName:   order.UserName,
-			Status:     order.Status,
-			OrderPrice: numericToFloat(order.OrderPrice),
-			Items:      make([]OrderItemResponse, len(order.Items)),
+			ID:          order.ID,
+			UserID:      order.UserID,
+			UserName:    order.UserName,
+			Status:      order.Status,
+			OrderPrice:  numericToFloat(order.OrderPrice),
+			Items:       make([]OrderItemResponse, len(order.Items)),
+			DownloadURL: order.DownloadURL,
 		}
 		for j, item := range order.Items {
 			resp.Orders[i].Items[j] = OrderItemResponse{
@@ -84,12 +86,13 @@ func (h *OrderHandler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := GetOrderResponse{
-		ID:         order.ID,
-		UserID:     order.UserID,
-		UserName:   order.UserName,
-		Status:     order.Status,
-		OrderPrice: numericToFloat(order.OrderPrice),
-		Items:      make([]OrderItemResponse, len(order.Items)),
+		ID:          order.ID,
+		UserID:      order.UserID,
+		UserName:    order.UserName,
+		Status:      order.Status,
+		OrderPrice:  numericToFloat(order.OrderPrice),
+		Items:       make([]OrderItemResponse, len(order.Items)),
+		DownloadURL: order.DownloadURL,
 	}
 	for i, item := range order.Items {
 		resp.Items[i] = OrderItemResponse{

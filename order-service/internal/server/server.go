@@ -8,6 +8,7 @@ import (
 	"order-service/internal/database"
 	"order-service/internal/features/order"
 	"order-service/internal/repository"
+	"order-service/internal/service"
 	"os"
 	"os/signal"
 	"syscall"
@@ -36,8 +37,21 @@ func NewServer(config *config.Config, logger *slog.Logger) *Server {
 	logger.Info("Initializing repositories")
 	queries := repository.New(pool)
 
-	logger.Info("Initializing services")
-	orderService := order.NewService(queries, logger)
+	logger.Info("Initializing Azure services")
+	queueService, err := service.NewQueueService(config.Azure.StorageConnectionString, logger)
+	if err != nil {
+		logger.Error("Failed to initialize queue service", "error", err)
+		os.Exit(1)
+	}
+
+	blobService, err := service.NewBlobService(config.Azure.StorageConnectionString, config.Azure.BlobContainerName, logger)
+	if err != nil {
+		logger.Error("Failed to initialize blob service", "error", err)
+		os.Exit(1)
+	}
+
+	logger.Info("Initializing order service")
+	orderService := order.NewService(queries, logger, queueService, config.Azure.QueueName, blobService, config.Azure.BlobContainerName)
 
 	router := NewRouter(*config, orderService, logger)
 

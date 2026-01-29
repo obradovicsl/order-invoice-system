@@ -2,10 +2,13 @@ package order
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math/big"
 	"order-service/internal/repository"
+	"order-service/internal/service"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -23,14 +26,22 @@ type Repository interface {
 }
 
 type Service struct {
-	repo   Repository
-	logger *slog.Logger
+	repo         Repository
+	logger       *slog.Logger
+	queueService *service.QueueService
+	queueName    string
+	blobService  *service.BlobService
+	blobContName string
 }
 
-func NewService(repo Repository, logger *slog.Logger) *Service {
+func NewService(repo Repository, logger *slog.Logger, queueService *service.QueueService, queueName string, blobService *service.BlobService, blobContName string) *Service {
 	return &Service{
-		repo:   repo,
-		logger: logger,
+		repo:         repo,
+		logger:       logger,
+		queueService: queueService,
+		queueName:    queueName,
+		blobService:  blobService,
+		blobContName: blobContName,
 	}
 }
 
@@ -45,14 +56,15 @@ type OrderItem struct {
 }
 
 type OrderResponse struct {
-	ID         pgtype.UUID        `json:"id"`
-	UserID     pgtype.UUID        `json:"user_id"`
-	UserName   string             `json:"user_name"`
-	OrderPrice pgtype.Numeric     `json:"order_price"`
-	Status     string             `json:"status"`
-	Items      []OrderItem        `json:"items"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	UserName     string             `json:"user_name"`
+	OrderPrice   pgtype.Numeric     `json:"order_price"`
+	Status       string             `json:"status"`
+	Items        []OrderItem        `json:"items"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DownloadURL  *string            `json:"download_url,omitempty"`
 }
 
 type CreateOrderItemRequest struct {
@@ -81,7 +93,7 @@ func (s *Service) GetAllOrders(ctx context.Context) ([]OrderResponse, error) {
 		orderID := row.ID.String()
 
 		if _, exists := ordersMap[orderID]; !exists {
-			ordersMap[orderID] = &OrderResponse{
+			orderResp := &OrderResponse{
 				ID:         row.ID,
 				UserID:     row.UserID,
 				UserName:   row.UserName,
@@ -91,6 +103,12 @@ func (s *Service) GetAllOrders(ctx context.Context) ([]OrderResponse, error) {
 				CreatedAt:  row.CreatedAt,
 				UpdatedAt:  row.UpdatedAt,
 			}
+			// Generate download URL if order is completed
+			if string(row.Status) == "COMPLETED" {
+				downloadURL := s.generateDownloadURL(orderID)
+				orderResp.DownloadURL = &downloadURL
+			}
+			ordersMap[orderID] = orderResp
 		}
 
 		if row.ItemProductID.Valid {
@@ -151,6 +169,11 @@ func (s *Service) GetOrderByID(ctx context.Context, id string) (*OrderResponse, 
 				Items:      []OrderItem{},
 				CreatedAt:  row.CreatedAt,
 				UpdatedAt:  row.UpdatedAt,
+			}
+			// Generate download URL if order is completed
+			if string(row.Status) == "COMPLETED" {
+				downloadURL := s.generateDownloadURL(row.ID.String())
+				orderResp.DownloadURL = &downloadURL
 			}
 		}
 
@@ -320,6 +343,15 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Ord
 		"status", order.Status,
 	)
 
+	// Send invoice generation message to queue
+	if err := s.sendInvoiceMessage(ctx, order.ID.String()); err != nil {
+		s.logger.Error("failed to send invoice message",
+			"order_id", order.ID.String(),
+			"error", err,
+		)
+		// Don't fail the order creation - log and continue
+	}
+
 	return &OrderResponse{
 		ID:         order.ID,
 		UserID:     order.UserID,
@@ -330,4 +362,54 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Ord
 		CreatedAt:  order.CreatedAt,
 		UpdatedAt:  order.UpdatedAt,
 	}, nil
+}
+
+// sendInvoiceMessage sends an invoice generation message to the queue
+func (s *Service) sendInvoiceMessage(ctx context.Context, orderID string) error {
+	timestamp := time.Now().Unix()
+	messageID := fmt.Sprintf("%s_%d", orderID, timestamp)
+
+	message := map[string]interface{}{
+		"order_id":   orderID,
+		"timestamp":  timestamp,
+		"message_id": messageID,
+	}
+
+	messageText, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	_, err = s.queueService.SendMessage(ctx, service.SendMessageInput{
+		QueueName:   s.queueName,
+		MessageText: string(messageText),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send queue message: %w", err)
+	}
+
+	s.logger.Info("invoice message sent to queue",
+		"order_id", orderID,
+		"message_id", messageID,
+	)
+
+	return nil
+}
+
+// generateDownloadURL generates a signed SAS URL for direct Blob Storage access
+func (s *Service) generateDownloadURL(orderID string) string {
+	filename := fmt.Sprintf("invoice_%s.pdf", orderID)
+
+	// Generate signed URL with 24-hour expiry
+	signedURL, err := s.blobService.GenerateSignedURL(s.blobContName, filename, 24*time.Hour)
+	if err != nil {
+		s.logger.Error("failed to generate signed URL",
+			"order_id", orderID,
+			"filename", filename,
+			"error", err,
+		)
+		return "" // Return empty string if signing fails
+	}
+
+	return signedURL
 }
