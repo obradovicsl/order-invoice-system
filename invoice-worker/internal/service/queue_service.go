@@ -126,58 +126,6 @@ func (qs *QueueService) DequeueMessage(ctx context.Context, queueName string, vi
 	}, nil
 }
 
-// DequeueMessages dequeues multiple messages from Azure Queue Storage
-func (qs *QueueService) DequeueMessages(ctx context.Context, queueName string, maxMessages int32, visibilityTimeout int32) ([]QueueMessage, error) {
-	qs.logger.Info("dequeuing messages from queue",
-		"queue", queueName,
-		"max_messages", maxMessages,
-		"visibility_timeout", visibilityTimeout,
-	)
-
-	queueClient, err := azqueue.NewQueueClientFromConnectionString(
-		qs.connectionString,
-		queueName,
-		nil,
-	)
-	if err != nil {
-		qs.logger.Error("failed to create queue client", "queue", queueName, "error", err)
-		return nil, err
-	}
-
-	dequeueOptions := &azqueue.DequeueMessagesOptions{
-		NumberOfMessages: &maxMessages,
-	}
-	if visibilityTimeout > 0 {
-		dequeueOptions.VisibilityTimeout = &visibilityTimeout
-	}
-
-	response, err := queueClient.DequeueMessages(ctx, dequeueOptions)
-	if err != nil {
-		qs.logger.Error("failed to dequeue messages", "queue", queueName, "error", err)
-		return nil, fmt.Errorf("failed to dequeue messages: %w", err)
-	}
-
-	var messages []QueueMessage
-	for _, msg := range response.Messages {
-		messages = append(messages, QueueMessage{
-			MessageID:       *msg.MessageID,
-			PopReceipt:      *msg.PopReceipt,
-			MessageText:     *msg.MessageText,
-			DequeueCount:    *msg.DequeueCount,
-			ExpirationTime:  msg.ExpirationTime.String(),
-			InsertionTime:   msg.InsertionTime.String(),
-			TimeNextVisible: msg.TimeNextVisible.String(),
-		})
-	}
-
-	qs.logger.Info("messages dequeued successfully",
-		"queue", queueName,
-		"message_count", len(messages),
-	)
-
-	return messages, nil
-}
-
 // DeleteMessage deletes a message from Azure Queue Storage
 func (qs *QueueService) DeleteMessage(ctx context.Context, queueName string, messageID string, popReceipt string) error {
 	qs.logger.Info("deleting message from queue",
@@ -202,38 +150,6 @@ func (qs *QueueService) DeleteMessage(ctx context.Context, queueName string, mes
 	}
 
 	qs.logger.Info("message deleted successfully", "message_id", messageID)
-	return nil
-}
-
-// UpdateMessage updates a message in Azure Queue Storage
-func (qs *QueueService) UpdateMessage(ctx context.Context, queueName string, messageID string, popReceipt string, messageText string, visibilityTimeout int32) error {
-	qs.logger.Info("updating message in queue",
-		"queue", queueName,
-		"message_id", messageID,
-	)
-
-	queueClient, err := azqueue.NewQueueClientFromConnectionString(
-		qs.connectionString,
-		queueName,
-		nil,
-	)
-	if err != nil {
-		qs.logger.Error("failed to create queue client", "queue", queueName, "error", err)
-		return err
-	}
-
-	updateOptions := &azqueue.UpdateMessageOptions{}
-	if visibilityTimeout >= 0 {
-		updateOptions.VisibilityTimeout = &visibilityTimeout
-	}
-
-	_, err = queueClient.UpdateMessage(ctx, messageID, popReceipt, messageText, updateOptions)
-	if err != nil {
-		qs.logger.Error("failed to update message", "message_id", messageID, "error", err)
-		return fmt.Errorf("failed to update message: %w", err)
-	}
-
-	qs.logger.Info("message updated successfully", "message_id", messageID)
 	return nil
 }
 
