@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+data:
+  ENV: "dev"
+  LOG_LEVEL: "debug"
+  
+  DB_HOST: "postgres"  # K8S service name
+  DB_PORT: "5432"
+  DB_NAME: "orders"
+  DB_SSLMODE: "disable"
+
+  # Storage
+  BLOB_CONTAINER_NAME: "invoices"
+  QUEUE_NAME: "invoice-queue"
+
+  # CORS
+  ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"

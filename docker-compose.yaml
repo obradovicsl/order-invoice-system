@@ -11,6 +11,19 @@ services:
       - "10002:10002"
     volumes:
       - azurite_data:/data
+  
+  invoice-worker:
+    build: ./invoice-worker
+    container_name: invoice-worker
+    environment:
+      - ENV=dev
+      - LOG_LEVEL=debug
+      - DATABASE_URL=postgres://dbadmin:local123@host.docker.internal:30432/orders?sslmode=disable
+      - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;
+      - BLOB_CONTAINER_NAME=invoices
+      - QUEUE_NAME=invoice-queue
+    depends_on:
+      - azurite
 
 volumes:
   azurite_data:

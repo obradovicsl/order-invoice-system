@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-service
+  template:
+    metadata:
+      labels:
+        app: catalog-service
+    spec:
+      containers:
+      - name: catalog-service
+        image: obradovicsl/catalog-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8081
+        
+        # ENV from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: app-config
+        
+        # ENV from Secret
+        env:
+        - name: SERVICE_PORT
+          value: "8081"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: azure-storage-secret
+              key: connection-string

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  ENV: "production"
+  LOG_LEVEL: "info"
+  BLOB_CONTAINER_NAME: "invoices"
+  QUEUE_NAME: "invoice-queue"
+  DB_HOST: "postgres"  # Kubernetes Service (LoadBalancer ће имати external IP)
+  DB_PORT: "5432"
+  DB_SSLMODE: "require"  # Продукција СА SSL

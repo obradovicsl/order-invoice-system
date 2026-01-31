@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  type: NodePort 
+  ports:
+  - port: 5432 # Inside cluster
+    targetPort: 5432 # PostgreSQL container
+    nodePort: 30432 # Outside cluster (minikubeIP:30432) - to access outside minikube cluster
+  selector:
+    app: postgres
