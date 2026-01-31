@@ -6,14 +6,21 @@ import (
 	"catalog-service/internal/features/catalog"
 	"catalog-service/internal/repository"
 	"context"
+	"database/sql"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 type Server struct {
@@ -33,6 +40,12 @@ func NewServer(config *config.Config, logger *slog.Logger) *Server {
 		os.Exit(1)
 	}
 
+	logger.Info("Running database migrations")
+	if err := runMigrations(pool, logger); err != nil {
+		logger.Error("Migration failed", "error", err)
+		os.Exit(1)
+	}
+
 	logger.Info("Initializing repositories")
 	queries := repository.New(pool)
 
@@ -47,6 +60,44 @@ func NewServer(config *config.Config, logger *slog.Logger) *Server {
 		Router: router,
 		pool:   pool,
 	}
+}
+
+func runMigrations(pool *pgxpool.Pool, logger *slog.Logger) error {
+	// Napravi novu *sql.DB konekciju iz connection stringa
+	connString := pool.Config().ConnConfig.ConnString()
+
+	db, err := sql.Open("pgx", connString)
+	if err != nil {
+		return fmt.Errorf("could not open DB for migrations: %w", err)
+	}
+	defer db.Close()
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create migration driver: %w", err)
+	}
+
+	// Pronađi apsolutnu putanju do migracija
+	migrationPath, err := filepath.Abs("db/migrations")
+	if err != nil {
+		return fmt.Errorf("could not resolve migration path: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationPath,
+		"postgres",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("could not create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	logger.Info("✓ Migrations applied successfully")
+	return nil
 }
 
 func (serverInstance *Server) Start() error {
