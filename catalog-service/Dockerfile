@@ -9,5 +9,6 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /roor/
 COPY --from=builder /app/catalog-service .
+COPY --from=builder /app/db/migrations ./db/migrations
 EXPOSE 8080
 CMD ["./catalog-service"]
