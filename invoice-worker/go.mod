@@ -1,6 +1,6 @@
 module invoice-worker
 
-go 1.25.5
+go 1.24.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.0.0
