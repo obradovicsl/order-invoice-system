@@ -15,12 +15,12 @@ provider "azurerm" {
 # Create a resource group
 resource "azurerm_resource_group" "main" {
     name = "myapp-orders-invoices"
-    location = "West Europe"
+    location = "Germany West Central"
 }
 
 # Create a storage account
 resource "azurerm_storage_account" "storage" {
-    name = "myappstorageinvoices"
+    name = "myappstorageinv2026"
     resource_group_name = azurerm_resource_group.main.name
     location = azurerm_resource_group.main.location
     account_tier = "Standard"
@@ -29,7 +29,7 @@ resource "azurerm_storage_account" "storage" {
 
 # Create ACR 
 resource "azurerm_container_registry" "acr" {
-    name = "myappacrinvoices"
+    name = "myappstorageinv2026"
     resource_group_name = azurerm_resource_group.main.name
     location = azurerm_resource_group.main.location
     sku = "Basic"
@@ -38,15 +38,15 @@ resource "azurerm_container_registry" "acr" {
 
 # Create AKS cluster
 resource "azurerm_kubernetes_cluster" "aks" {
-    name = "myapp-aks"
+    name = "myapp-aks-order-invoice"
     location = azurerm_resource_group.main.location
     resource_group_name = azurerm_resource_group.main.name
     dns_prefix = "myapp"
 
     default_node_pool {
         name = "default"
-        node_count = 2
-        vm_size = "Standard_DS2_v2"
+        node_count = 1
+        vm_size = "Standard_D2pds_v6"
     }
 
     identity {
@@ -54,7 +54,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     }
 
     network_profile {
-        network_plugin = "azure"
+        network_plugin = "kubenet"
         load_balancer_sku = "standard"
     }
 }
