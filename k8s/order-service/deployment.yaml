@@ -24,6 +24,8 @@ spec:
               name: app-config
           
           env:
+          - name: BLOB_PUBLIC_HOST
+            value: "localhost:10000"
           - name: SERVICE_PORT
             value: "8081"
           - name: DB_USER

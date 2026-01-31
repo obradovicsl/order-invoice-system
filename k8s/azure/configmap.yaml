@@ -7,6 +7,6 @@ data:
   LOG_LEVEL: "info"
   BLOB_CONTAINER_NAME: "invoices"
   QUEUE_NAME: "invoice-queue"
-  DB_HOST: "postgres"  # Kubernetes Service (LoadBalancer ће имати external IP)
+  DB_HOST: "postgres"  
   DB_PORT: "5432"
-  DB_SSLMODE: "require"  # Продукција СА SSL
+  DB_SSLMODE: "require"
