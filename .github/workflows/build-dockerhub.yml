@@ -1,0 +1,140 @@
+name: Build and Push to Docker Hub
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'catalog-service/**'
+      - 'order-service/**'
+      - 'invoice-worker/**'
+      - '.github/workflows/build-dockerhub.yml'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+
+jobs:
+  build-catalog-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+          cache-dependency-path: catalog-service/go.sum
+      
+      - name: Install dependencies
+        working-directory: ./catalog-service
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./catalog-service
+        run: go test  -v ./...
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_TOKEN }}
+        
+      - name: Build and Push Docker image
+        working-directory: ./catalog-service
+        run: |
+          IMAGE_NAME=${{ env.DOCKER_USERNAME }}/catalog-service
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ github.sha }} .
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}
+  
+  build-order-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache-dependency-path: order-service/go.sum
+      
+      - name: Install dependencies
+        working-directory: ./order-service
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./order-service
+        run: go test -v ./... 
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{env.DOCKER_USERNAME}}
+          password: ${{env.DOCKER_TOKEN}}
+      
+      - name: Build and Push Docker image
+        working-directory: ./order-service
+        run: |
+          IMAGE_NAME=${{env.DOCKER_USERNAME}}/order-service
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{github.sha}} .
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{github.sha}}
+  
+  build-invoice-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache-dependency-path: invoice-worker/go.sum
+      
+      - name: Install dependencies
+        working-directory: ./invoice-worker
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./invoice-worker
+        run: go test  -v ./..
+      
+      - name: Login to Docker hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{env.DOCKER_USERNAME}}
+          password: ${{env.DOCKER_TOKEN}}
+        
+      - name: Build and Push Docker Image
+        working-directory: ./invoice-worker
+        run: |
+          IMAGE_NAME=${{env.DOCKER_USERNAME}}/invoice-worker
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{github.sha}} .
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{github.sha}}
+
+  build-summary:
+    needs: [build-catalog-service, build-order-service, build-invoice-worker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Summary
+        run: |
+          echo "All services built, tested, and pushed successfully!"
+          echo ""
+          echo "Images available at Docker Hub:"
+          echo " - docker.io/${{env.DOCKER_USERNAME}}/catalog-service:latest"
+          echo " - docker.io/${{env.DOCKER_USERNAME}}/catalog-service:${{github.sha}}"
+          echo " - docker.io/${{env.DOCKER_USERNAME}}/order-service:latest"
+          echo " - docker.io/${{env.DOCKER_USERNAME}}/order-service:${{github.sha}}"
+          echo " - docker.io/${{env.DOCKER_USERNAME}}/invoice-worker:latest"
+          echo " - docker.io/${{env.DOCKER_USERNAME}}/invoice-worker:${{github.sha}}"
+          echo ""
+          echo "Ready to deploy to Minikube!"
