@@ -9,7 +9,7 @@ terraform {
 
 provider "azurerm" {
     features {}
-    subscription_id = "5d4d78dc-7df6-4f76-b476-f477b34e51eb"
+    subscription_id = "84f19c42-fe0d-4412-90f0-aaf3d6fced80"
 }
 
 # Create a resource group
@@ -20,7 +20,7 @@ resource "azurerm_resource_group" "main" {
 
 # Create a storage account
 resource "azurerm_storage_account" "storage" {
-    name = "myappstorageinv2026"
+    name = "myappstorageinvoivce2026"
     resource_group_name = azurerm_resource_group.main.name
     location = azurerm_resource_group.main.location
     account_tier = "Standard"
@@ -29,7 +29,7 @@ resource "azurerm_storage_account" "storage" {
 
 # Create ACR 
 resource "azurerm_container_registry" "acr" {
-    name = "myappstorageinv2026"
+    name = "myappacrinv2026"
     resource_group_name = azurerm_resource_group.main.name
     location = azurerm_resource_group.main.location
     sku = "Basic"
