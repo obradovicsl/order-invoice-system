@@ -13,6 +13,7 @@ spec:
       labels:
         app: postgres
     spec:
+      serviceAccountName: aks-workload-identity
       containers:
       - name: postgres
         image: postgres:15-alpine
@@ -30,6 +31,9 @@ spec:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
           subPath: postgres
+        - name: secrets-store
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
 
         # Health checks
         livenessProbe:
@@ -66,3 +70,9 @@ spec:
       - name: postgres-storage
         persistentVolumeClaim:
           claimName: postgres-pvc
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.azure.com
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "azure-keyvault-secrets"
