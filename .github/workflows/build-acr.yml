@@ -126,50 +126,55 @@ jobs:
           docker push $IMAGE_NAME:latest
           docker push $IMAGE_NAME:${{github.sha}}
 
-  # deploy-to-aks:
-  #   needs: [build-catalog-service, build-order-service]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-      
-  #     - name: Setup kubectl
-  #       run: |
-  #         echo "${{ secrets.KUBE_CONFIG_BASE64 }}" | base64 -d > kubeconfig
-  #         export KUBECONFIG=kubeconfig
-  #         kubectl version --client
-      
-  #     - name: Deploy Postgres
-  #       run: |
-  #         export KUBECONFIG=kubeconfig
-  #         kubectl apply -f k8s/postgres/
-      
-  #     - name: Deploy Services
-  #       run: |
-  #         kubectl apply -f k8s/catalog-service/
-  #         kubectl apply -f k8s/order-service/
-  #         kubectl rollout restart deployment/catalog-service
-  #         kubectl rollout restart deployment/order-service
-      
-  #     - name: Deployment Summary
-  #       run: |
-  #         export KUBECONFIG=kubeconfig
-  #         echo "Deployment complete!"
-  #         kubectl get pods
-  #         kubectl get services
+  deploy-to-aks:
+    needs: [build-catalog-service, build-order-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        run: |
+          az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group myapp-orders-invoices \
+            --name myapp-aks-order-invoice \
+            --file kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Deploy Azure Resources
+        run: kubectl apply -f k8s/azure/
+
+      - name: Deploy Postgres
+        run: kubectl apply -f k8s/postgres/
+
+      - name: Deploy Services
+        run: |
+          kubectl apply -f k8s/catalog-service/
+          kubectl apply -f k8s/order-service/
+          kubectl rollout restart deployment/catalog-service
+          kubectl rollout restart deployment/order-service
+
+      - name: Deployment Summary
+        run: |
+          echo "Deployment complete!"
+          kubectl get pods -A
+          kubectl get services
     
-  # deploy-invoice-worker:
-  #   needs: build-invoice-worker
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Login to Azure
-  #       uses: azure/login@v1
-  #       with:
-  #         creds: ${{ secrets.AZURE_CREDENTIALS }}
-      
-  #     - name: Deploy to ACA
-  #       run: |
-  #         az containerapp update \
-  #           --name invoice-worker \
-  #           --resource-group myapp-orders-invoices \
-  #           --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest
+  deploy-invoice-worker:
+    needs: build-invoice-worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        run: |
+          az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
+
+      - name: Deploy to ACA
+        run: |
+          az containerapp update \
+            --name invoice-worker \
+            --resource-group myapp-orders-invoices \
+            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest

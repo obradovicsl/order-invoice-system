@@ -12,18 +12,19 @@ spec:
       labels:
         app: catalog-service
     spec:
+      serviceAccountName: aks-workload-identity
       containers:
       - name: catalog-service
         image: myappacrinv2026.azurecr.io/catalog-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8081
-        
+
         # ENV from ConfigMap
         envFrom:
         - configMapRef:
             name: app-config
-        
+
         # ENV from Secret
         env:
         - name: SERVICE_PORT
@@ -43,3 +44,16 @@ spec:
             secretKeyRef:
               name: azure-storage-secret
               key: connection-string
+
+        volumeMounts:
+        - name: secrets-store
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+
+      volumes:
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.azure.com
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "azure-keyvault-secrets"

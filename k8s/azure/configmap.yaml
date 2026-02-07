@@ -5,8 +5,15 @@ metadata:
 data:
   ENV: "production"
   LOG_LEVEL: "info"
+
+  # Database
+  DB_HOST: "postgres.default.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_SSLMODE: "disable"
+
+  # Storage
   BLOB_CONTAINER_NAME: "invoices"
   QUEUE_NAME: "invoice-queue"
-  DB_HOST: "postgres"  
-  DB_PORT: "5432"
-  DB_SSLMODE: "require"
+
+  # CORS
+  ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
