@@ -1,0 +1,175 @@
+name: Build, Push to ACR, and Deploy to AKS and ACA
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'catalog-service/**'
+      - 'order-service/**'
+      - 'invoice-worker/**'
+      - 'k8s/**'
+      - '.github/workflows/build-dockerhub.yml'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+  ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+  ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+
+jobs:
+  build-catalog-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.0'
+          cache-dependency-path: catalog-service/go.sum
+      
+      - name: Install dependencies
+        working-directory: ./catalog-service
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./catalog-service
+        run: go test  -v ./...
+      
+      - name: Login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+        
+      - name: Build and Push Docker image
+        working-directory: ./catalog-service
+        run: |
+          IMAGE_NAME=${{ env.ACR_LOGIN_SERVER }}/catalog-service
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ github.sha }} .
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}
+  
+  build-order-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.0'
+          cache-dependency-path: order-service/go.sum
+      
+      - name: Install dependencies
+        working-directory: ./order-service
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./order-service
+        run: go test -v ./... 
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+      
+      - name: Build and Push Docker image
+        working-directory: ./order-service
+        run: |
+          IMAGE_NAME=${{ env.ACR_LOGIN_SERVER }}/order-service
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{github.sha}} .
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{github.sha}}
+  
+  build-invoice-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.0'
+          cache-dependency-path: invoice-worker/go.sum
+      
+      - name: Install dependencies
+        working-directory: ./invoice-worker
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./invoice-worker
+        run: go test -v ./...
+      
+      - name: Login to Docker hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+        
+      - name: Build and Push Docker Image
+        working-directory: ./invoice-worker
+        run: |
+          IMAGE_NAME=${{ env.ACR_LOGIN_SERVER }}/invoice-worker
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{github.sha}} .
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{github.sha}}
+
+  # deploy-to-aks:
+  #   needs: [build-catalog-service, build-order-service]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+      
+  #     - name: Setup kubectl
+  #       run: |
+  #         echo "${{ secrets.KUBE_CONFIG_BASE64 }}" | base64 -d > kubeconfig
+  #         export KUBECONFIG=kubeconfig
+  #         kubectl version --client
+      
+  #     - name: Deploy Postgres
+  #       run: |
+  #         export KUBECONFIG=kubeconfig
+  #         kubectl apply -f k8s/postgres/
+      
+  #     - name: Deploy Services
+  #       run: |
+  #         kubectl apply -f k8s/catalog-service/
+  #         kubectl apply -f k8s/order-service/
+  #         kubectl rollout restart deployment/catalog-service
+  #         kubectl rollout restart deployment/order-service
+      
+  #     - name: Deployment Summary
+  #       run: |
+  #         export KUBECONFIG=kubeconfig
+  #         echo "Deployment complete!"
+  #         kubectl get pods
+  #         kubectl get services
+    
+  # deploy-invoice-worker:
+  #   needs: build-invoice-worker
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Login to Azure
+  #       uses: azure/login@v1
+  #       with:
+  #         creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+  #     - name: Deploy to ACA
+  #       run: |
+  #         az containerapp update \
+  #           --name invoice-worker \
+  #           --resource-group myapp-orders-invoices \
+  #           --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest

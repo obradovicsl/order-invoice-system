@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: postgres
 spec:
-  type: NodePort 
+  type: LoadBalancer 
   ports:
   - port: 5432 # Inside cluster
     targetPort: 5432 # PostgreSQL container
-    nodePort: 30432 # Outside cluster (minikubeIP:30432) - to access outside minikube cluster
+    nodePort: 30432 
   selector:
     app: postgres
