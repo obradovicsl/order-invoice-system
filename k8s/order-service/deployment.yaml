@@ -53,7 +53,7 @@ spec:
       volumes:
       - name: secrets-store
         csi:
-          driver: secrets-store.csi.azure.com
+          driver: secrets-store.csi.k8s.io
           readOnly: true
           volumeAttributes:
             secretProviderClass: "azure-keyvault-secrets"
