@@ -18,7 +18,14 @@ services:
     environment:
       - ENV=dev
       - LOG_LEVEL=debug
-      - DATABASE_URL=postgres://dbadmin:local123@host.docker.internal:30432/orders?sslmode=disable
+
+      - DB_USER=dbadmin
+      - DB_PASSWORD=local123
+      - DB_HOST=host.docker.internal 
+      - DB_PORT=15432
+      - DB_NAME=orders
+      - DB_SSLMODE=disable
+
       - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;
       - BLOB_CONTAINER_NAME=invoices
       - QUEUE_NAME=invoice-queue

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: catalog-service
-        image: obradovicsl/catalog-service:latest
+        image: myappacrinv2026.azurecr.io/catalog-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8081

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -199,9 +200,15 @@ func (bs *BlobService) GenerateSignedURL(containerName string, blobName string, 
 	}
 
 	// Check if using Azurite (local development)
-	isAzurite := strings.Contains(blobEndpoint, "127.0.0.1") || strings.Contains(blobEndpoint, "localhost")
+	isAzurite := strings.Contains(blobEndpoint, "127.0.0.1") ||
+		strings.Contains(blobEndpoint, "localhost") ||
+		strings.Contains(blobEndpoint, "host.minikube.internal")
 
 	if isAzurite {
+		publicHost := os.Getenv("BLOB_PUBLIC_HOST")
+		if publicHost == "" {
+			publicHost = "localhost:10000" // fallback
+		}
 		// For Azurite, return direct URL without SAS
 		blobURL := fmt.Sprintf("%s/%s/%s", blobEndpoint, containerName, blobName)
 		bs.logger.Info("direct URL generated for Azurite", "blob_name", blobName, "url", blobURL)

@@ -6,17 +6,15 @@ import (
 	"invoice-worker/internal/logger"
 	"invoice-worker/internal/utils/loader"
 	"log/slog"
-	"strings"
 	"time"
 )
 
 type Config struct {
-	Env            string
-	Port           string
-	Logger         logger.LoggerConfig
-	AllowedOrigins []string
-	Database       DBConfig
-	Azure          AzureConfig
+	Env      string
+	Port     string
+	Logger   logger.LoggerConfig
+	Database DBConfig
+	Azure    AzureConfig
 }
 
 type DBConfig struct {
@@ -36,12 +34,11 @@ type AzureConfig struct {
 func NewConfig() *Config {
 
 	cfg := &Config{
-		Env:            loader.GetEnv("ENV", "dev"),
-		Port:           loader.GetEnv("SERVICE_PORT", "8084"),
-		AllowedOrigins: strings.Split(loader.GetEnvOrCrash("ALLOWED_ORIGINS"), ","),
-		Logger:         loadLoggerConfig(),
-		Database:       loadDatabaseConfig(),
-		Azure:          loadAzureConfig(),
+		Env:      loader.GetEnv("ENV", "dev"),
+		Port:     loader.GetEnv("SERVICE_PORT", "8084"),
+		Logger:   loadLoggerConfig(),
+		Database: loadDatabaseConfig(),
+		Azure:    loadAzureConfig(),
 	}
 
 	cfgJSON, _ := json.MarshalIndent(cfg, "", " ")

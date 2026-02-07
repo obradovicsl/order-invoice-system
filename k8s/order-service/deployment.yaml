@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: obradovicsl/order-service:latest
+          image: myappacrinv2026.azurecr.io/order-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
@@ -24,6 +24,8 @@ spec:
               name: app-config
           
           env:
+          - name: BLOB_PUBLIC_HOST
+            value: "localhost:10000"
           - name: SERVICE_PORT
             value: "8081"
           - name: DB_USER
