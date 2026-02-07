@@ -12,17 +12,18 @@ spec:
       labels:
         app: order-service
     spec:
+      serviceAccountName: aks-workload-identity
       containers:
         - name: order-service
           image: myappacrinv2026.azurecr.io/order-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
-          
+
           envFrom:
           - configMapRef:
               name: app-config
-          
+
           env:
           - name: BLOB_PUBLIC_HOST
             value: "localhost:10000"
@@ -43,3 +44,16 @@ spec:
               secretKeyRef:
                 name: azure-storage-secret
                 key: connection-string
+
+          volumeMounts:
+          - name: secrets-store
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+
+      volumes:
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.azure.com
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "azure-keyvault-secrets"

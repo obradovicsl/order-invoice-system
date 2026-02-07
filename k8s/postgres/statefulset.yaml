@@ -37,7 +37,7 @@ spec:
             command:
             - pg_isready
             - -U
-            - dbadmin
+            - postgres
             - -d
             - orders
           initialDelaySeconds: 30
@@ -48,7 +48,7 @@ spec:
             command:
             - pg_isready
             - -U
-            - dbadmin
+            - postgres
             - -d
             - orders
           initialDelaySeconds: 5
