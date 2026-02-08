@@ -16,6 +16,6 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
     touch /var/run/nginx.pid && \
     chown nginx:nginx /var/run/nginx.pid
 USER nginx
-EXPOSE 80
+EXPOSE 8082
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD test -f /var/run/nginx.pid || exit 1
