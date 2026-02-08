@@ -1,19 +1,19 @@
 name: Build, Push to ACR, and Deploy to AKS and ACA
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'catalog-service/**'
-      - 'order-service/**'
-      - 'invoice-worker/**'
-      - 'k8s/**'
-      - '.github/workflows/build-acr.yml'
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'catalog-service/**'
+  #     - 'order-service/**'
+  #     - 'invoice-worker/**'
+  #     - 'k8s/**'
+  #     - '.github/workflows/build-acr.yml'
+  # pull_request:
+  #   branches:
+  #     - main
+  # workflow_dispatch:
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
@@ -148,7 +148,7 @@ jobs:
           docker push $IMAGE_NAME:${{github.sha}}
 
   deploy-to-aks:
-    needs: [build-catalog-service, build-order-service]
+    needs: [build-catalog-service, build-order-service, build-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
