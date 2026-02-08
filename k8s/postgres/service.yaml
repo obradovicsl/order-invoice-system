@@ -7,6 +7,5 @@ spec:
   ports:
   - port: 5432 # Inside cluster
     targetPort: 5432 # PostgreSQL container
-    nodePort: 30432 
   selector:
     app: postgres
