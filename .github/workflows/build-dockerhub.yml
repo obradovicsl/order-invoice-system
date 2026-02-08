@@ -1,18 +1,18 @@
 name: Build and Push to Docker Hub
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'catalog-service/**'
-      - 'order-service/**'
-      - 'invoice-worker/**'
-      - '.github/workflows/build-dockerhub.yml'
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'catalog-service/**'
+  #     - 'order-service/**'
+  #     - 'invoice-worker/**'
+  #     - '.github/workflows/build-dockerhub.yml'
+  # pull_request:
+  #   branches:
+  #     - main
+  # workflow_dispatch:
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
