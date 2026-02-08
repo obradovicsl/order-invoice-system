@@ -53,6 +53,12 @@ variable "postgres_port" {
   default     = 5432
 }
 
+variable "postgres_sslmode" {
+  description = "Postgres SSL mode"
+  type = string
+  default = "disable"
+}
+
 // ============== STORAGE ================
 variable "storage_account_name" {
   description = "Azure Storage Account name (must be globally unique, lowercase, 3-24 chars)"

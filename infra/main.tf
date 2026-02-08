@@ -267,6 +267,10 @@ resource "azurerm_container_app" "app" {
         value = tostring(var.postgres_port)
       }
       env {
+        name  = "DB_SSLMODE"
+        value = tostring(var.postgres_sslmode)
+      }
+      env {
         name  = "BLOB_CONTAINER_NAME"
         value = azurerm_storage_container.invoices.name
       }

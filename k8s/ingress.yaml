@@ -9,8 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: myapp.local
-    http:
+  - http:
       paths:
       # Catalog Service
       - path: /api/v1/catalog
