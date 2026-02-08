@@ -81,10 +81,10 @@ func (qs *QueueService) SendMessage(ctx context.Context, input SendMessageInput)
 
 // DequeueMessage dequeues a message from Azure Queue Storage
 func (qs *QueueService) DequeueMessage(ctx context.Context, queueName string, visibilityTimeout int32) (*QueueMessage, error) {
-	qs.logger.Info("dequeuing message from queue",
-		"queue", queueName,
-		"visibility_timeout", visibilityTimeout,
-	)
+	// qs.logger.Info("dequeuing message from queue",
+	// 	"queue", queueName,
+	// 	"visibility_timeout", visibilityTimeout,
+	// )
 
 	queueClient, err := azqueue.NewQueueClientFromConnectionString(
 		qs.connectionString,
@@ -109,7 +109,7 @@ func (qs *QueueService) DequeueMessage(ctx context.Context, queueName string, vi
 
 	// If no messages available
 	if len(response.Messages) == 0 {
-		qs.logger.Info("no messages in queue", "queue", queueName)
+		// qs.logger.Info("no messages in queue", "queue", queueName)
 		return nil, nil
 	}
 

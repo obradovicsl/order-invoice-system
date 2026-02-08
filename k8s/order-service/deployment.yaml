@@ -25,7 +25,7 @@ spec:
               name: app-config
 
           env:
-          - name: BLOB_PUBLIC_HOST
+          - name: BLOB_PUBLIC_HOST # for local testing
             value: "localhost:10000"
           - name: SERVICE_PORT
             value: "8081"

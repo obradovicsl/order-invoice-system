@@ -21,7 +21,6 @@ resource "azurerm_resource_group" "main" {
     tags     = var.tags
 }
 
-
 // =============== STORAGE ACCOUNT ================
 resource "azurerm_storage_account" "storage" {
     name                     = var.storage_account_name
@@ -45,7 +44,6 @@ resource "azurerm_storage_container" "invoices" {
     storage_account_id = azurerm_storage_account.storage.id
 }
 
-
 // =============== CONTAINER REGISTRY ================
 resource "azurerm_container_registry" "acr" {
     name                = var.acr_name
@@ -55,71 +53,6 @@ resource "azurerm_container_registry" "acr" {
     admin_enabled       = true
     tags                = var.tags
 }
-
-// =============== AKS VIRTUAL NETWORK ================ 
-resource "azurerm_virtual_network" "aks_vnet" {
-  name = "aks-vnet"
-  location = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  address_space = ["10.0.0.0/16"]
-}
-
-resource "azurerm_subnet" "aks_subnet" {
-  name = "aks-subnet"
-  resource_group_name = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.aks_vnet.name
-  address_prefixes = ["10.0.1.0/24"]
-}
-
-// =============== ACA VIRTUAL NETWORK ================
-resource "azurerm_virtual_network" "aca_vnet" {
-  name = "aca-vnet"
-  location = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  address_space = ["10.1.0.0/16"]
-}
-
-resource "azurerm_subnet" "aca_subnet" {
-  name = "aca-subnet"
-  resource_group_name = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.aca_vnet.name
-  address_prefixes = ["10.1.0.0/23"]
-
-  delegation {
-    name = "aca-delegation"
-
-    service_delegation {
-      name = "Microsoft.App/environments"
-
-      actions = [
-        "Microsoft.Network/virtualNetworks/subnets/action"
-      ]
-    }
-  }
-}
-
-// =============== PEERING ================
-
-resource "azurerm_virtual_network_peering" "aks_to_aca" {
-  name                      = "aks-to-aca"
-  resource_group_name       = azurerm_resource_group.main.name
-  virtual_network_name      = azurerm_virtual_network.aks_vnet.name
-  remote_virtual_network_id = azurerm_virtual_network.aca_vnet.id
-  allow_forwarded_traffic   = true
-  allow_gateway_transit     = false
-  allow_virtual_network_access = true
-}
-
-resource "azurerm_virtual_network_peering" "aca_to_aks" {
-  name                      = "aca-to-aks"
-  resource_group_name       = azurerm_resource_group.main.name
-  virtual_network_name      = azurerm_virtual_network.aca_vnet.name
-  remote_virtual_network_id = azurerm_virtual_network.aks_vnet.id
-  allow_forwarded_traffic   = true
-  allow_gateway_transit     = false
-  allow_virtual_network_access = true
-}
-
 
 // ============== AKS CLUSTER ================
 resource "azurerm_kubernetes_cluster" "aks" {
@@ -132,7 +65,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
         name       = "default"
         node_count = var.aks_node_count
         vm_size    = var.aks_vm_size
-        vnet_subnet_id = azurerm_subnet.aks_subnet.id
     }
 
     identity {
@@ -140,9 +72,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     }
 
     network_profile {
-        network_plugin   = "azure"
-        service_cidr = "10.2.0.0/16"
-        dns_service_ip = "10.2.0.10"
+        network_plugin   = "kubenet"
         load_balancer_sku = "standard"
     }
 
@@ -161,7 +91,6 @@ resource "azurerm_role_assignment" "aks_acr" {
     scope                            = azurerm_container_registry.acr.id
     skip_service_principal_aad_check = true
 }
-
 
 // ============== KEY VAULT ================
 resource "azurerm_key_vault" "main" {
@@ -235,8 +164,6 @@ resource "azurerm_container_app_environment" "env" {
     name                = var.aca_environment_name
     location            = azurerm_resource_group.main.location
     resource_group_name = azurerm_resource_group.main.name
-    infrastructure_subnet_id = azurerm_subnet.aca_subnet.id
-    internal_load_balancer_enabled = false
     tags                = var.tags
 }
 

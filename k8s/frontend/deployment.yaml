@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      serviceAccountName: aks-workload-identity
+      containers:
+        - name: frontend
+          image: myappacrinv2026.azurecr.io/frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: VITE_CATALOG_API_URL
+              value: "http://catalog-service.default.svc.cluster.local:8080/api/v1/catalog"
+            - name: VITE_ORDERS_API_URL
+              value: "http://order-service.default.svc.cluster.local:8081/api/v1/orders"
