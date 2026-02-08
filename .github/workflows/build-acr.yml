@@ -208,20 +208,12 @@ jobs:
           kubectl get services
     
   deploy-invoice-worker:
-    needs: build-invoice-worker
+    needs: [build-invoice-worker, deploy-to-aks]
     runs-on: ubuntu-latest
     steps:
       - name: Azure Login
         run: |
           az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
-
-      - name: Get AKS credentials
-        run: |
-          az aks get-credentials \
-            --resource-group myapp-orders-invoices \
-            --name myapp-aks-inv2026 \
-            --overwrite-existing
-
       - name: Wait for PostgreSQL LoadBalancer IP
         id: get-postgres-ip
         run: |
@@ -236,17 +228,11 @@ jobs:
             echo "Attempt $i/30..."
             sleep 10
           done
-          
-          # Proveri da li smo dobili IP
-          if [ -z "$POSTGRES_IP" ]; then
-            echo "❌ Failed to get PostgreSQL IP"
-            exit 1
-          fi
 
-      - name: Deploy to ACA with Database Config
+      - name: Deploy to ACA
         run: |
           az containerapp update \
             --name invoice-worker \
             --resource-group myapp-orders-invoices \
-            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest \
+            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest
             --set-env-vars DB_HOST=${{ steps.get-postgres-ip.outputs.postgres_ip }}
