@@ -18,7 +18,7 @@ spec:
           image: myappacrinv2026.azurecr.io/frontend:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8082
           env:
             - name: VITE_CATALOG_API_URL
               value: "http://catalog-service.default.svc.cluster.local:8080/api/v1/catalog"

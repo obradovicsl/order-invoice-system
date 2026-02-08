@@ -2,13 +2,9 @@ package service
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
-	"net/url"
 	"strings"
 	"time"
 
@@ -196,58 +192,39 @@ func (bs *BlobService) GenerateSignedURL(containerName string, blobName string, 
 		return "", fmt.Errorf("invalid connection string: missing AccountName or AccountKey")
 	}
 
+	// Create shared key credential
+	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
+	if err != nil {
+		bs.logger.Error("failed to create shared key credential", "error", err)
+		return "", fmt.Errorf("failed to create credential: %w", err)
+	}
+
 	// Create SAS signature values
-	sv := sas.BlobSignatureValues{
+	permissions := sas.BlobPermissions{Read: true}
+	sasValues := sas.BlobSignatureValues{
 		Protocol:      sas.ProtocolHTTPS,
-		StartTime:     time.Now().UTC().Add(-time.Minute),
+		StartTime:     time.Now().UTC().Add(-5 * time.Minute),
 		ExpiryTime:    time.Now().UTC().Add(expiryDuration),
-		Permissions:   "r",
+		Permissions:   permissions.String(),
 		ContainerName: containerName,
 		BlobName:      blobName,
 	}
 
-	// Sign with shared key (using manual HMAC-SHA256 signing)
-	signature := computeHMACSHA256(sv, accountKey, accountName)
-	sasToken := fmt.Sprintf("sv=%s&se=%s&sr=b&sp=%s&sig=%s",
-		url.QueryEscape("2021-06-08"),
-		url.QueryEscape(sv.ExpiryTime.UTC().Format("2006-01-02T15:04:05Z")),
-		url.QueryEscape(sv.Permissions),
-		url.QueryEscape(signature),
-	)
+	// Sign with credential - SDK automatically uses latest API version
+	queryParams, err := sasValues.SignWithSharedKey(credential)
+	if err != nil {
+		bs.logger.Error("failed to sign SAS token", "error", err)
+		return "", fmt.Errorf("failed to sign SAS: %w", err)
+	}
 
 	// Construct the signed URL
-	blobURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s", accountName, containerName, blobName, sasToken)
+	blobURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
+		accountName,
+		containerName,
+		blobName,
+		queryParams.Encode(),
+	)
 
 	bs.logger.Info("signed URL generated successfully", "blob_name", blobName)
 	return blobURL, nil
-}
-
-// computeHMACSHA256 computes HMAC-SHA256 signature for SAS token
-func computeHMACSHA256(sv sas.BlobSignatureValues, accountKey string, accountName string) string {
-	// Decode the base64 account key
-	decodedKey, _ := base64.StdEncoding.DecodeString(accountKey)
-
-	// Create the string to sign following Azure SAS token format
-	// StringToSign = signedPermissions + "\n" +
-	//                signedStart + "\n" +
-	//                signedExpiry + "\n" +
-	//                canonicalizedResource + "\n" +
-	//                signedIdentifier + "\n" +
-	//                signedIP + "\n" +
-	//                signedProtocol + "\n" +
-	//                signedVersion
-	stringToSign := fmt.Sprintf("%s\n%s\n%s\n%s\n\n\n\n%s",
-		sv.Permissions,
-		sv.StartTime.UTC().Format("2006-01-02T15:04:05Z"),
-		sv.ExpiryTime.UTC().Format("2006-01-02T15:04:05Z"),
-		fmt.Sprintf("/blob/%s/%s/%s", accountName, sv.ContainerName, sv.BlobName),
-		"2021-06-08",
-	)
-
-	// Compute HMAC-SHA256
-	h := hmac.New(sha256.New, decodedKey)
-	h.Write([]byte(stringToSign))
-	signature := base64.StdEncoding.EncodeToString(h.Sum(nil))
-
-	return signature
 }
