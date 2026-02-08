@@ -168,7 +168,7 @@ jobs:
           fi
 
       - name: Deploy Ingress
-        run: kubectl apply -f k8s/ingress.yaml/
+        run: kubectl apply -f k8s/ingress.yaml
 
       - name: Deployment Summary
         run: |
