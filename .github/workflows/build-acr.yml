@@ -9,7 +9,7 @@ on:
       - 'order-service/**'
       - 'invoice-worker/**'
       - 'k8s/**'
-      - '.github/workflows/build-dockerhub.yml'
+      - '.github/workflows/build-acr.yml'
   pull_request:
     branches:
       - main
