@@ -214,6 +214,15 @@ jobs:
       - name: Azure Login
         run: |
           az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
+      
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group myapp-orders-invoices \
+            --name myapp-aks-order-invoice \
+            --file kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+      
       - name: Wait for PostgreSQL LoadBalancer IP
         id: get-postgres-ip
         run: |
