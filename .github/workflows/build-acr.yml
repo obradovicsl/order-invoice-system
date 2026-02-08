@@ -148,6 +148,21 @@ jobs:
       - name: Deploy Azure Resources
         run: kubectl apply -f k8s/azure/
 
+      - name: Ensure Ingress Controller exists
+        run: |
+          if ! kubectl get deployment -n ingress-nginx ingress-nginx-controller &> /dev/null; then
+            echo "Installing Ingress Controller..."
+            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.1/deploy/static/provider/cloud/deploy.yaml
+          else
+            echo "Ingress Controller already exists"
+          fi
+      
+      - name: Wait for Ingress Controller to be ready
+        run: |
+          kubectl rollout status deployment/ingress-nginx-controller \
+            -n ingress-nginx \
+            --timeout=180s
+
       - name: Deploy Postgres
         run: kubectl apply -f k8s/postgres/
 
@@ -158,14 +173,6 @@ jobs:
           kubectl rollout restart deployment/catalog-service
           kubectl rollout restart deployment/order-service
       
-      - name: Ensure Ingress Controller exists
-        run: |
-          if ! kubectl get deployment -n ingress-nginx ingress-nginx-controller &> /dev/null; then
-            echo "Installing Ingress Controller..."
-            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.1/deploy/static/provider/cloud/deploy.yaml
-          else
-            echo "Ingress Controller already exists"
-          fi
 
       - name: Deploy Ingress
         run: kubectl apply -f k8s/ingress.yaml
