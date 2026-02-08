@@ -29,7 +29,7 @@ spec:
         # Mount PVC
         volumeMounts:
         - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql/data/pgdata
 
         - name: secrets-store
           mountPath: "/mnt/secrets-store"
@@ -42,8 +42,6 @@ spec:
             - pg_isready
             - -U
             - postgres
-            - -d
-            - orders
           initialDelaySeconds: 30
           periodSeconds: 10
 
@@ -53,8 +51,6 @@ spec:
             - pg_isready
             - -U
             - postgres
-            - -d
-            - orders
           initialDelaySeconds: 5
           periodSeconds: 5
         
