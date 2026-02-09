@@ -31,7 +31,9 @@ func NewHandler(service CatalogService, logger *slog.Logger) *CatalogHandler {
 
 func CatalogRouter(r chi.Router, handler *CatalogHandler) {
 	r.Get("/", handler.GetAllCatalogItems)
-	r.Get("/{id}", handler.GetCatalogItemByID)
 	r.Post("/", handler.CreateCatalogItem)
+
+	
 	r.Post("/upload-url", handler.GetPresignedUploadURL)
+	r.Get("/{id}", handler.GetCatalogItemByID)
 }
