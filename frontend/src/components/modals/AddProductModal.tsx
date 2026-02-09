@@ -36,7 +36,6 @@ export const AddProductModal = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
 
   // Validate form data
@@ -142,8 +141,6 @@ export const AddProductModal = ({
     }
 
     try {
-      setUploadProgress(0);
-
       if (!selectedFile) {
         throw new Error('No file selected');
       }
@@ -184,7 +181,6 @@ export const AddProductModal = ({
         stockQuantity: 0,
       });
       setSelectedFile(null);
-      setUploadProgress(0);
       onClose();
     } catch (error) {
       const errorMessage =
