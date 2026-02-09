@@ -68,7 +68,7 @@ export const catalogService = {
         id: p.id,
         code: p.code,
         name: p.name,
-        image: p.image || '',
+        image: p.image_url || '',
         price: parseFloat(p.price),
         stockQuantity: p.stock_quantity || 0,
       }));
