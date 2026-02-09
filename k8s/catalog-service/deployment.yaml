@@ -57,12 +57,12 @@ spec:
         - name: IMAGE_BLOB_NAME
           valueFrom:
             secretKeyRef:
-              name: invoices-blob-name
+              name: azure-storage-secret
               key: IMAGES_BLOB_NAME
         - name: QUEUE_NAME
           valueFrom:
             secretKeyRef:
-              name: invoices-blob-name
+              name: azure-storage-secret
               key: QUEUE_NAME
 
         volumeMounts:

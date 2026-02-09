@@ -29,6 +29,16 @@ resource "azurerm_storage_account" "storage" {
     account_tier             = "Standard"
     account_replication_type = "LRS"
     tags                     = var.tags
+
+  blob_properties {
+    cors_rule {
+      allowed_origins    = ["*"]  # Ili konkretno: ["http://172.213.168.4"]
+      allowed_methods    = ["GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS"]
+      allowed_headers    = ["*"]
+      exposed_headers    = ["*"]
+      max_age_in_seconds = 3600
+    }
+  }
 }
 
 // Queue

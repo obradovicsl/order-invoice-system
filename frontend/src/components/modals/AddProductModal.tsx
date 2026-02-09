@@ -156,6 +156,7 @@ export const AddProductModal = ({
         method: 'PUT',
         headers: {
           'Content-Type': selectedFile.type,
+          'x-ms-blob-type': 'BlockBlob',
         },
         body: selectedFile,
       });
