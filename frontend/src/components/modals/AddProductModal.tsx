@@ -145,14 +145,14 @@ export const AddProductModal = ({
         throw new Error('No file selected');
       }
 
-      // Step 1: Get presigned upload URL from backend
-      const presignedUrl = await catalogService.getPresignedUploadUrl(
+      // Step 1: Get presigned upload and download URLs from backend
+      const { uploadUrl, downloadUrl } = await catalogService.getPresignedUploadUrl(
         selectedFile.name,
         selectedFile.type
       );
 
-      // Step 2: Upload image to blob storage using presigned URL
-      await fetch(presignedUrl, {
+      // Step 2: Upload image to blob storage using presigned upload URL
+      await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': selectedFile.type,
@@ -161,14 +161,10 @@ export const AddProductModal = ({
         body: selectedFile,
       });
 
-      // For now: use template URL pattern (backend will return actual blob storage URL in real implementation)
-      // TODO: Once backend implements actual blob storage, use the returned URL from the upload response
-      const imageUrl = `https://blob-storage.example.com/${selectedFile.name}`;
-
-      // Step 3: Create product with image URL
+      // Step 3: Create product with download URL as image
       const productData: Product = {
         ...formData,
-        image: imageUrl,
+        image: downloadUrl,
       };
 
       await onSubmit(productData);

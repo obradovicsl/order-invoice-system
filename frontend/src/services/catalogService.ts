@@ -13,13 +13,13 @@ const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL;
 
 export const catalogService = {
   // Get presigned upload URL for blob storage
-  // Backend should return a pre-signed URL that allows direct PUT upload to blob storage
+  // Backend returns both upload URL (for PUT) and download URL (for image display)
   // Request: POST /upload-url with { file_name, file_type }
-  // Response: { upload_url: "https://blob-storage/...", ... }
+  // Response: { upload_url: "...", download_url: "..." }
   async getPresignedUploadUrl(
     fileName: string,
     fileType: string
-  ): Promise<string> {
+  ): Promise<{ uploadUrl: string; downloadUrl: string }> {
     try {
       const response = await fetch(`${CATALOG_API_URL}/upload-url`, {
         method: 'POST',
@@ -37,7 +37,10 @@ export const catalogService = {
       }
 
       const json = await response.json();
-      return json.upload_url || json.uploadUrl || '';
+      return {
+        uploadUrl: json.upload_url || json.uploadUrl || '',
+        downloadUrl: json.download_url || json.downloadUrl || '',
+      };
     } catch (error) {
       console.error('Error getting presigned upload URL:', error);
       throw error;
@@ -82,7 +85,7 @@ export const catalogService = {
       const payload = {
         code: product.code,
         name: product.name,
-        image: product.image,
+        image_url: product.image,
         price: product.price,
         stock_quantity: product.stockQuantity,
       };

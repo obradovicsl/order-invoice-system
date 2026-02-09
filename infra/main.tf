@@ -162,6 +162,12 @@ resource "azurerm_key_vault_secret" "storage_connection_string" {
   value        = azurerm_storage_account.storage.primary_connection_string
   key_vault_id = azurerm_key_vault.main.id
 }
+// Storage name
+resource "azurerm_key_vault_secret" "storage_connection_string" {
+  name         = "storage-name"
+  value        = azurerm_storage_account.storage.name
+  key_vault_id = azurerm_key_vault.main.id
+}
 
 // Queue name
 resource "azurerm_key_vault_secret" "queue_name" {

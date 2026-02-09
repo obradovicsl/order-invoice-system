@@ -51,22 +51,22 @@ func (s *Service) UpdateItemQuantity(ctx context.Context, arg repository.UpdateI
 }
 
 // GetPresignedUploadURL generates a presigned URL for direct blob upload
-func (s *Service) GetPresignedUploadURL(ctx context.Context, fileName string, fileType string) (string, error) {
+func (s *Service) GetPresignedUploadURL(ctx context.Context, fileName string, fileType string) (string, string, error) {
 	s.logger.Info("generating presigned upload URL",
 		"file_name", fileName,
 		"file_type", fileType,
 	)
 
 	// Generate signed URL with 1-hour expiry for upload
-	signedURL, err := s.blobService.GenerateUploadSignedURL(s.blobContName, fileName, 1*time.Hour)
+	signedURL, downloadURL, err := s.blobService.GenerateUploadSignedURL(s.blobContName, fileName, 1*time.Hour)
 	if err != nil {
 		s.logger.Error("failed to generate presigned upload URL",
 			"file_name", fileName,
 			"error", err,
 		)
-		return "", fmt.Errorf("failed to generate presigned upload URL: %w", err)
+		return "", "", fmt.Errorf("failed to generate presigned upload URL: %w", err)
 	}
 
 	s.logger.Info("presigned upload URL generated successfully", "file_name", fileName)
-	return signedURL, nil
+	return signedURL, downloadURL, nil
 }

@@ -11,7 +11,8 @@ type GetPresignedUploadURLRequest struct {
 }
 
 type GetPresignedUploadURLResponse struct {
-	UploadURL string `json:"upload_url"`
+	UploadURL   string `json:"upload_url"`
+	DownloadURL string `json:"download_url"`
 }
 
 func (h *CatalogHandler) GetPresignedUploadURL(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +34,7 @@ func (h *CatalogHandler) GetPresignedUploadURL(w http.ResponseWriter, r *http.Re
 		"file_type", req.FileType,
 	)
 
-	uploadURL, err := h.service.GetPresignedUploadURL(r.Context(), req.FileName, req.FileType)
+	uploadURL, downloadURL, err := h.service.GetPresignedUploadURL(r.Context(), req.FileName, req.FileType)
 	if err != nil {
 		h.logger.Error("failed to generate presigned upload URL",
 			"file_name", req.FileName,
@@ -44,10 +45,11 @@ func (h *CatalogHandler) GetPresignedUploadURL(w http.ResponseWriter, r *http.Re
 	}
 
 	resp := GetPresignedUploadURLResponse{
-		UploadURL: uploadURL,
+		UploadURL:   uploadURL,
+		DownloadURL: downloadURL,
 	}
 
-	h.logger.Info("presigned upload URL generated successfully", "file_name", req.FileName)
+	h.logger.Info("presigned URLs generated successfully", "file_name", req.FileName)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

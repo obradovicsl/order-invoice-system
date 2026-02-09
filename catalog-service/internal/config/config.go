@@ -30,6 +30,7 @@ type DBConfig struct {
 type AzureConfig struct {
 	StorageConnectionString string
 	BlobContainerName       string
+	StorageName             string
 }
 
 func NewConfig() *Config {
@@ -84,5 +85,6 @@ func loadAzureConfig() AzureConfig {
 	return AzureConfig{
 		StorageConnectionString: loader.GetEnvOrCrash("AZURE_STORAGE_CONNECTION_STRING"),
 		BlobContainerName:       loader.GetEnv("IMAGE_BLOB_NAME", "images"),
+		StorageName:             loader.GetEnv("AZURE_STORAGE_NAME", ""),
 	}
 }

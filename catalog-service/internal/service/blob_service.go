@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
+	"github.com/google/uuid"
 )
 
 type BlobService struct {
@@ -230,10 +232,16 @@ func (bs *BlobService) GenerateSignedURL(containerName string, blobName string, 
 }
 
 // GenerateSignedURL generates a SAS (Shared Access Signature) URL for direct blob access
-func (bs *BlobService) GenerateUploadSignedURL(containerName string, blobName string, expiryDuration time.Duration) (string, error) {
+func (bs *BlobService) GenerateUploadSignedURL(containerName string, blobName string, expiryDuration time.Duration) (string, string, error) {
+	// Generate unique blob name with UUID
+	ext := filepath.Ext(blobName)
+	baseName := strings.TrimSuffix(blobName, ext)
+	uniqueBlobName := fmt.Sprintf("%s-%s%s", baseName, uuid.New().String(), ext)
+
 	bs.logger.Info("generating signed URL for blob",
 		"container", containerName,
-		"blob_name", blobName,
+		"original_blob_name", blobName,
+		"unique_blob_name", uniqueBlobName,
 		"expiry_duration", expiryDuration.String(),
 	)
 
@@ -243,42 +251,68 @@ func (bs *BlobService) GenerateUploadSignedURL(containerName string, blobName st
 
 	if accountName == "" || accountKey == "" {
 		bs.logger.Error("failed to extract account name or key from connection string")
-		return "", fmt.Errorf("invalid connection string: missing AccountName or AccountKey")
+		return "", "", fmt.Errorf("invalid connection string: missing AccountName or AccountKey")
 	}
 
 	// Create shared key credential
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
 		bs.logger.Error("failed to create shared key credential", "error", err)
-		return "", fmt.Errorf("failed to create credential: %w", err)
+		return "", "", fmt.Errorf("failed to create credential: %w", err)
 	}
 
-	// Create SAS signature values
-	permissions := sas.BlobPermissions{Write: true, Add: true}
-	sasValues := sas.BlobSignatureValues{
+	// Create SAS signature values for upload (Write + Add permissions)
+	uploadPermissions := sas.BlobPermissions{Write: true, Add: true}
+	uploadSasValues := sas.BlobSignatureValues{
 		Protocol:      sas.ProtocolHTTPS,
 		StartTime:     time.Now().UTC().Add(-5 * time.Minute),
 		ExpiryTime:    time.Now().UTC().Add(expiryDuration),
-		Permissions:   permissions.String(),
+		Permissions:   uploadPermissions.String(),
 		ContainerName: containerName,
-		BlobName:      blobName,
+		BlobName:      uniqueBlobName,
 	}
 
-	// Sign with credential - SDK automatically uses latest API version
-	queryParams, err := sasValues.SignWithSharedKey(credential)
+	// Sign upload URL
+	uploadQueryParams, err := uploadSasValues.SignWithSharedKey(credential)
 	if err != nil {
-		bs.logger.Error("failed to sign SAS token", "error", err)
-		return "", fmt.Errorf("failed to sign SAS: %w", err)
+		bs.logger.Error("failed to sign upload SAS token", "error", err)
+		return "", "", fmt.Errorf("failed to sign upload SAS: %w", err)
 	}
 
-	// Construct the signed URL
-	blobURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
+	// Construct the upload URL
+	uploadURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
 		accountName,
 		containerName,
-		blobName,
-		queryParams.Encode(),
+		uniqueBlobName,
+		uploadQueryParams.Encode(),
 	)
 
-	bs.logger.Info("signed URL generated successfully", "blob_name", blobName)
-	return blobURL, nil
+	// Create SAS signature values for download (Read permissions, 24-hour expiry)
+	downloadPermissions := sas.BlobPermissions{Read: true}
+	downloadSasValues := sas.BlobSignatureValues{
+		Protocol:      sas.ProtocolHTTPS,
+		StartTime:     time.Now().UTC().Add(-5 * time.Minute),
+		ExpiryTime:    time.Now().UTC().Add(24 * time.Hour),
+		Permissions:   downloadPermissions.String(),
+		ContainerName: containerName,
+		BlobName:      uniqueBlobName,
+	}
+
+	// Sign download URL
+	downloadQueryParams, err := downloadSasValues.SignWithSharedKey(credential)
+	if err != nil {
+		bs.logger.Error("failed to sign download SAS token", "error", err)
+		return "", "", fmt.Errorf("failed to sign download SAS: %w", err)
+	}
+
+	// Construct the download URL
+	downloadURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
+		accountName,
+		containerName,
+		uniqueBlobName,
+		downloadQueryParams.Encode(),
+	)
+
+	bs.logger.Info("signed URLs generated successfully", "blob_name", uniqueBlobName)
+	return uploadURL, downloadURL, nil
 }

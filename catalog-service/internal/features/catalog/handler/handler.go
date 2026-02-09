@@ -14,7 +14,7 @@ type CatalogService interface {
 	GetAllCatalogItems(ctx context.Context) ([]repository.Item, error)
 	GetCatalogItemByID(ctx context.Context, id pgtype.UUID) (repository.Item, error)
 	UpdateItemQuantity(ctx context.Context, arg repository.UpdateItemQuantityParams) (repository.Item, error)
-	GetPresignedUploadURL(ctx context.Context, fileName string, fileType string) (string, error)
+	GetPresignedUploadURL(ctx context.Context, fileName string, fileType string) (string, string, error)
 }
 
 type CatalogHandler struct {
