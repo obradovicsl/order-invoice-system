@@ -16,6 +16,7 @@ type Config struct {
 	Logger         logger.LoggerConfig
 	AllowedOrigins []string
 	Database       DBConfig
+	Azure          AzureConfig
 }
 
 type DBConfig struct {
@@ -26,6 +27,11 @@ type DBConfig struct {
 	MaxConnLifetime time.Duration
 }
 
+type AzureConfig struct {
+	StorageConnectionString string
+	BlobContainerName       string
+}
+
 func NewConfig() *Config {
 
 	cfg := &Config{
@@ -34,6 +40,7 @@ func NewConfig() *Config {
 		AllowedOrigins: strings.Split(loader.GetEnvOrCrash("ALLOWED_ORIGINS"), ","),
 		Logger:         loadLoggerConfig(),
 		Database:       loadDatabaseConfig(),
+		Azure:          loadAzureConfig(),
 	}
 
 	cfgJSON, _ := json.MarshalIndent(cfg, "", " ")
@@ -71,4 +78,11 @@ func loadDatabaseConfig() DBConfig {
 	}
 
 	return dbConfig
+}
+
+func loadAzureConfig() AzureConfig {
+	return AzureConfig{
+		StorageConnectionString: loader.GetEnvOrCrash("AZURE_STORAGE_CONNECTION_STRING"),
+		BlobContainerName:       loader.GetEnv("IMAGE_BLOB_NAME", "images"),
+	}
 }

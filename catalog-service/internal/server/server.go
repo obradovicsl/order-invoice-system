@@ -5,6 +5,7 @@ import (
 	"catalog-service/internal/database"
 	"catalog-service/internal/features/catalog"
 	"catalog-service/internal/repository"
+	"catalog-service/internal/service"
 	"context"
 	"database/sql"
 	"fmt"
@@ -50,7 +51,13 @@ func NewServer(config *config.Config, logger *slog.Logger) *Server {
 	queries := repository.New(pool)
 
 	logger.Info("Initializing services")
-	catalogService := catalog.NewService(queries, logger)
+	blobService, err := service.NewBlobService(config.Azure.StorageConnectionString, config.Azure.BlobContainerName, logger)
+	if err != nil {
+		logger.Error("Failed to initialize blob service", "error", err)
+		os.Exit(1)
+	}
+
+	catalogService := catalog.NewService(queries, logger, blobService, config.Azure.BlobContainerName)
 
 	router := NewRouter(*config, catalogService, logger)
 

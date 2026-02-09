@@ -49,6 +49,21 @@ spec:
             secretKeyRef:
               name: azure-storage-secret
               key: connection-string
+        - name: BLOB_CONTAINER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: azure-storage-secret
+              key: INVOICES_BLOB_NAME
+        - name: IMAGE_BLOB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: invoices-blob-name
+              key: IMAGES_BLOB_NAME
+        - name: QUEUE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: invoices-blob-name
+              key: QUEUE_NAME
 
         volumeMounts:
         - name: secrets-store

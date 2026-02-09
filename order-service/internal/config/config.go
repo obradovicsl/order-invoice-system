@@ -1,11 +1,11 @@
 package config
 
 import (
-	"order-service/internal/logger"
-	"order-service/internal/utils/loader"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"order-service/internal/logger"
+	"order-service/internal/utils/loader"
 	"strings"
 	"time"
 )

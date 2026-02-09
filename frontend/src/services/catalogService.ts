@@ -12,6 +12,38 @@ export interface Product {
 const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL;
 
 export const catalogService = {
+  // Get presigned upload URL for blob storage
+  // Backend should return a pre-signed URL that allows direct PUT upload to blob storage
+  // Request: POST /upload-url with { file_name, file_type }
+  // Response: { upload_url: "https://blob-storage/...", ... }
+  async getPresignedUploadUrl(
+    fileName: string,
+    fileType: string
+  ): Promise<string> {
+    try {
+      const response = await fetch(`${CATALOG_API_URL}/upload-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file_name: fileName,
+          file_type: fileType,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get presigned upload URL');
+      }
+
+      const json = await response.json();
+      return json.upload_url || json.uploadUrl || '';
+    } catch (error) {
+      console.error('Error getting presigned upload URL:', error);
+      throw error;
+    }
+  },
+
   // Fetch all products from the catalog
   async getAllProducts(): Promise<Product[]> {
     try {

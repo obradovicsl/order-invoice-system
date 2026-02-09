@@ -65,6 +65,21 @@ variable "storage_account_name" {
   type        = string
   default     = "myappstorageinvoice2026"
 }
+variable "queue_name" {
+  description = "Azure Storage Queue name (lowercase, 3-63 chars)"
+  type        = string
+  default     = "invoice-queue"
+}
+variable "invoices_blob_name" {
+  description = "Azure Storage Blob container for PDF invoices"
+  type        = string
+  default     = "invoices"
+}
+variable "images_blob_name" {
+  description = "Azure Storage Blob container for invoice-related images"
+  type        = string
+  default     = "images"
+}
 
 // ============== CONTAINER REGISTRY ================
 variable "acr_name" {

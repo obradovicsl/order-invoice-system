@@ -104,6 +104,7 @@ export const Catalog = () => {
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
+                <TableHead className="font-semibold">Image</TableHead>
                 <TableHead className="font-semibold">Code</TableHead>
                 <TableHead className="font-semibold">Name</TableHead>
                 <TableHead className="font-semibold">Price</TableHead>
@@ -115,6 +116,15 @@ export const Catalog = () => {
             <TableBody>
               {products.map((product) => (
                 <TableRow key={product.code} className="hover:bg-gray-50">
+                  <TableCell>
+                    {product.image && (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-12 w-12 object-cover rounded"
+                      />
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">{product.code}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>${product.price.toFixed(2)}</TableCell>

@@ -43,6 +43,12 @@ resource "azurerm_storage_container" "invoices" {
     container_access_type = "private"
     storage_account_id = azurerm_storage_account.storage.id
 }
+// Image blob
+resource "azurerm_storage_container" "images" {
+    name = "images"
+    container_access_type = "blob"
+    storage_account_id = azurerm_storage_account.storage.id
+}
 
 // =============== CONTAINER REGISTRY ================
 resource "azurerm_container_registry" "acr" {
@@ -144,6 +150,27 @@ resource "azurerm_key_vault_secret" "postgres_db" {
 resource "azurerm_key_vault_secret" "storage_connection_string" {
   name         = "storage-connection-string"
   value        = azurerm_storage_account.storage.primary_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+}
+
+// Queue name
+resource "azurerm_key_vault_secret" "queue_name" {
+  name         = "queue-name"
+  value        = var.queue_name
+  key_vault_id = azurerm_key_vault.main.id
+}
+
+// Invoices blob name
+resource "azurerm_key_vault_secret" "invoices_blob_name" {
+  name         = "invoices-blob-name"
+  value        = var.invoices_blob_name
+  key_vault_id = azurerm_key_vault.main.id
+}
+
+// Images blob name
+resource "azurerm_key_vault_secret" "images_blob_name" {
+  name         = "images-blob-name"
+  value        = var.images_blob_name
   key_vault_id = azurerm_key_vault.main.id
 }
 

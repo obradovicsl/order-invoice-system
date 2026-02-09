@@ -10,6 +10,8 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import type { Product } from '../../services/catalogService';
+import { catalogService } from '../../services/catalogService';
+import { Upload } from 'lucide-react';
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -33,6 +35,9 @@ export const AddProductModal = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
 
   // Validate form data
   const validateForm = (): boolean => {
@@ -44,8 +49,8 @@ export const AddProductModal = ({
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     }
-    if (!formData.image.trim()) {
-      newErrors.image = 'Image URL is required';
+    if (!selectedFile) {
+      newErrors.image = 'Image is required';
     }
     if (formData.price <= 0) {
       newErrors.price = 'Price must be greater than 0';
@@ -75,6 +80,61 @@ export const AddProductModal = ({
     }
   };
 
+  const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
+
+  const handleFileSelect = (file: File | null) => {
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    if (!ALLOWED_FORMATS.includes(file.type)) {
+      setErrors((prev) => ({
+        ...prev,
+        image: 'Only PNG, JPEG, and WebP images are allowed',
+      }));
+      return;
+    }
+
+    setSelectedFile(file);
+    // Clear image error when file is selected
+    if (errors.image) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.image;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -82,7 +142,39 @@ export const AddProductModal = ({
     }
 
     try {
-      await onSubmit(formData);
+      setUploadProgress(0);
+
+      if (!selectedFile) {
+        throw new Error('No file selected');
+      }
+
+      // Step 1: Get presigned upload URL from backend
+      const presignedUrl = await catalogService.getPresignedUploadUrl(
+        selectedFile.name,
+        selectedFile.type
+      );
+
+      // Step 2: Upload image to blob storage using presigned URL
+      await fetch(presignedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': selectedFile.type,
+        },
+        body: selectedFile,
+      });
+
+      // For now: use template URL pattern (backend will return actual blob storage URL in real implementation)
+      // TODO: Once backend implements actual blob storage, use the returned URL from the upload response
+      const imageUrl = `https://blob-storage.example.com/${selectedFile.name}`;
+
+      // Step 3: Create product with image URL
+      const productData: Product = {
+        ...formData,
+        image: imageUrl,
+      };
+
+      await onSubmit(productData);
+
       // Reset form after successful submission
       setFormData({
         code: '',
@@ -91,8 +183,16 @@ export const AddProductModal = ({
         price: 0,
         stockQuantity: 0,
       });
+      setSelectedFile(null);
+      setUploadProgress(0);
       onClose();
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error uploading image';
+      setErrors((prev) => ({
+        ...prev,
+        image: errorMessage,
+      }));
       console.error('Error submitting form:', error);
     }
   };
@@ -137,22 +237,6 @@ export const AddProductModal = ({
             )}
           </div>
 
-          {/* Image Field */}
-          <div className="space-y-2">
-            <Label htmlFor="image">Image URL</Label>
-            <Input
-              id="image"
-              name="image"
-              placeholder="Enter image URL"
-              value={formData.image}
-              onChange={handleInputChange}
-              disabled={isLoading}
-            />
-            {errors.image && (
-              <p className="text-sm text-red-500">{errors.image}</p>
-            )}
-          </div>
-
           {/* Price Field */}
           <div className="space-y-2">
             <Label htmlFor="price">Price</Label>
@@ -189,6 +273,48 @@ export const AddProductModal = ({
               <p className="text-sm text-red-500">
                 {errors.stockQuantity}
               </p>
+            )}
+          </div>
+
+          {/* Image Upload Field */}
+          <div className="space-y-2">
+            <Label>Product Image</Label>
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                dragActive
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:border-gray-400'
+              } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <input
+                type="file"
+                id="image-upload"
+                className="hidden"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleFileInputChange}
+                disabled={isLoading}
+              />
+              <label
+                htmlFor="image-upload"
+                className="flex flex-col items-center gap-2 cursor-pointer"
+              >
+                <Upload className="w-8 h-8 text-gray-400" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    {selectedFile ? selectedFile.name : 'Drag and drop your image here'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    or click to select (PNG, JPEG, WebP)
+                  </p>
+                </div>
+              </label>
+            </div>
+            {errors.image && (
+              <p className="text-sm text-red-500">{errors.image}</p>
             )}
           </div>
 
