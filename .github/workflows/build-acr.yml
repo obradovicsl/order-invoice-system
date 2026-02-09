@@ -243,5 +243,5 @@ jobs:
           az containerapp update \
             --name invoice-worker \
             --resource-group myapp-orders-invoices \
-            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest
+            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest \
             --set-env-vars DB_HOST=${{ steps.get-postgres-ip.outputs.postgres_ip }}
