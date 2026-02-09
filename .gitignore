@@ -4,7 +4,6 @@
 # terraform
 .terraform
 terraform.tfvars
-terraform.tfvars
 *.tfstate
 *.tfstate.backup
 
