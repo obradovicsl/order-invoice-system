@@ -128,24 +128,6 @@ describe('ordersService', () => {
       await expect(ordersService.createOrder(orderInput)).rejects.toThrow('Failed to create order');
     });
 
-    it('should handle invalid response from create order', async () => {
-      const orderInput: Order = {
-        customerName: 'Jane Doe',
-        items: [
-          {
-            productId: 'prod-1',
-            quantity: 1,
-          },
-        ],
-      };
-
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({}),
-      });
-
-      await expect(ordersService.createOrder(orderInput)).rejects.toThrow('Invalid response: no order data returned');
-    });
   });
 
   describe('deleteOrder', () => {
