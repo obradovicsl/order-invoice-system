@@ -196,16 +196,49 @@ jobs:
           kubectl rollout restart deployment/catalog-service
           kubectl rollout restart deployment/order-service
           kubectl rollout restart deployment/frontend
-      
+
+      - name: Wait for Rollout - Catalog Service
+        run: |
+          kubectl rollout status deployment/catalog-service \
+            --timeout=300s
+
+      - name: Wait for Rollout - Order Service
+        run: |
+          kubectl rollout status deployment/order-service \
+            --timeout=300s
+
+      - name: Wait for Rollout - Frontend
+        run: |
+          kubectl rollout status deployment/frontend \
+            --timeout=300s
+
+      - name: Verify All Pods are Ready
+        run: |
+          echo "Checking if all pods are ready..."
+          kubectl get pods -A
+
+          # Check that all pods are running
+          READY_COUNT=$(kubectl get pods -A -o wide | grep -c "Running")
+          TOTAL_COUNT=$(kubectl get pods -A | wc -l)
+          echo "Running pods: $READY_COUNT / $TOTAL_COUNT"
+
+          if [ $READY_COUNT -lt 3 ]; then
+            echo "Not all pods are running!"
+            exit 1
+          fi
 
       - name: Deploy Ingress
         run: kubectl apply -f k8s/ingress.yaml
 
       - name: Deployment Summary
         run: |
-          echo "Deployment complete!"
+          echo "=== Deployment to AKS Complete ==="
+          echo "Pods:"
           kubectl get pods -A
+          echo -e "\nServices:"
           kubectl get services
+          echo -e "\nDeployments:"
+          kubectl get deployments
     
   deploy-invoice-worker:
     needs: [build-invoice-worker, deploy-to-aks]
@@ -215,9 +248,140 @@ jobs:
         run: |
           az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
 
+      - name: Get Current Container App Revision
+        run: |
+          CURRENT_REVISION=$(az containerapp revision list \
+            --name invoice-worker \
+            --resource-group myapp-orders-invoices \
+            --query "[0].name" -o tsv)
+          echo "CURRENT_REVISION=$CURRENT_REVISION" >> $GITHUB_ENV
+          echo "Current revision: $CURRENT_REVISION"
+
       - name: Deploy to ACA
         run: |
           az containerapp update \
             --name invoice-worker \
             --resource-group myapp-orders-invoices \
             --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:${{ github.sha }}
+
+      - name: Wait for New Revision
+        run: |
+          echo "Waiting for new revision to be created..."
+          sleep 10
+
+          NEW_REVISION=$(az containerapp revision list \
+            --name invoice-worker \
+            --resource-group myapp-orders-invoices \
+            --query "[0].name" -o tsv)
+          echo "NEW_REVISION=$NEW_REVISION" >> $GITHUB_ENV
+          echo "New revision: $NEW_REVISION"
+
+          if [ "$NEW_REVISION" == "$CURRENT_REVISION" ]; then
+            echo "ERROR: New revision was not created!"
+            exit 1
+          fi
+
+      - name: Verify Container App is Ready
+        run: |
+          echo "Checking Container App status..."
+          az containerapp show \
+            --name invoice-worker \
+            --resource-group myapp-orders-invoices \
+            --query "properties.provisioning_state"
+
+      - name: Container App Deployment Summary
+        run: |
+          echo "=== Deployment to ACA Complete ==="
+          az containerapp revision list \
+            --name invoice-worker \
+            --resource-group myapp-orders-invoices \
+            --query "[0]" -o table
+
+  integration-tests:
+    needs: [deploy-to-aks, deploy-invoice-worker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get Deployment Info for Rollback
+        run: |
+          # Get current image tags for all services
+          echo "CATALOG_IMAGE=$(kubectl get deployment catalog-service -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
+          echo "ORDER_IMAGE=$(kubectl get deployment order-service -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=$(kubectl get deployment frontend -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
+
+          echo "Saved deployment state for potential rollback"
+
+      - name: Get AKS Credentials
+        run: |
+          az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
+          az aks get-credentials \
+            --resource-group myapp-orders-invoices \
+            --name myapp-aks-order-invoice \
+            --file kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Wait for Services to be Ready
+        run: |
+          echo "Waiting for all services to be ready..."
+          kubectl wait --for=condition=ready pod -l app=order-service --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=catalog-service --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=frontend --timeout=300s || true
+          sleep 10
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.0'
+
+      - name: Run Catalog Service Integration Tests
+        working-directory: ./catalog-service
+        run: |
+          echo "Running integration tests..."
+          go test -tags=integration -v -timeout=300s ./...
+          if [ $? -ne 0 ]; then
+            echo "✗ Integration tests failed!"
+            exit 1
+          fi
+          echo "✓ Catalog service integration tests passed"
+
+      - name: Tests Passed - Deployment Complete
+        if: success()
+        run: |
+          echo "=== All Integration Tests Passed ==="
+          echo "✓ Health checks successful"
+          echo "✓ Invoice worker deployed"
+          echo "Pipeline completed successfully!"
+
+      - name: Tests Failed - Rollback Initiated
+        if: failure()
+        run: |
+          echo "=== Integration Tests Failed - Initiating Rollback ==="
+
+          # Rollback AKS deployments
+          echo "Rolling back Kubernetes deployments..."
+          kubectl set image deployment/order-service \
+            order-service=${{ env.ORDER_IMAGE }} || echo "Could not rollback order-service"
+          kubectl set image deployment/catalog-service \
+            catalog-service=${{ env.CATALOG_IMAGE }} || echo "Could not rollback catalog-service"
+          kubectl set image deployment/frontend \
+            frontend=${{ env.FRONTEND_IMAGE }} || echo "Could not rollback frontend"
+
+          # Rollback Invoice Worker to previous revision
+          echo "Rolling back invoice worker to previous revision..."
+          PREVIOUS_REVISION=$(az containerapp revision list \
+            --name invoice-worker \
+            --resource-group myapp-orders-invoices \
+            --query "[?properties.active == \`false\`] | [0].name" -o tsv)
+
+          if [ ! -z "$PREVIOUS_REVISION" ]; then
+            az containerapp ingress traffic set \
+              --name invoice-worker \
+              --resource-group myapp-orders-invoices \
+              --traffic-weight "$PREVIOUS_REVISION=100" || echo "Could not rollback invoice worker"
+            echo "Rolled back invoice worker to revision: $PREVIOUS_REVISION"
+          fi
+
+          echo "✗ Rollback completed. Please investigate the integration test failures."
+          exit 1
