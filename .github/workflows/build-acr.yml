@@ -214,34 +214,10 @@ jobs:
       - name: Azure Login
         run: |
           az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
-      
-      - name: Get AKS Credentials
-        run: |
-          az aks get-credentials \
-            --resource-group myapp-orders-invoices \
-            --name myapp-aks-order-invoice \
-            --file kubeconfig
-          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
-      
-      - name: Wait for PostgreSQL LoadBalancer IP
-        id: get-postgres-ip
-        run: |
-          echo "Waiting for LoadBalancer IP..."
-          for i in {1..30}; do
-            POSTGRES_IP=$(kubectl get svc postgres -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-            if [ ! -z "$POSTGRES_IP" ]; then
-              echo "postgres_ip=$POSTGRES_IP" >> $GITHUB_OUTPUT
-              echo "✓ Got IP: $POSTGRES_IP"
-              break
-            fi
-            echo "Attempt $i/30..."
-            sleep 10
-          done
 
       - name: Deploy to ACA
         run: |
           az containerapp update \
             --name invoice-worker \
             --resource-group myapp-orders-invoices \
-            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:latest \
-            --set-env-vars DB_HOST=${{ steps.get-postgres-ip.outputs.postgres_ip }}
+            --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:${{ github.sha }}
