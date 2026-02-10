@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"catalog-service/internal/config"
-	"catalog-service/internal/database"
 	"catalog-service/internal/features/catalog"
 	"catalog-service/internal/features/catalog/handler"
 	"catalog-service/internal/logger"
@@ -100,7 +99,7 @@ func TestMain(m *testing.M) {
 
 func runTestMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	migrations := []string{
-		`CREATE TABLE IF NOT EXISTS catalog_items (
+		`CREATE TABLE IF NOT EXISTS items (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			code VARCHAR(255) NOT NULL UNIQUE,
 			name VARCHAR(255) NOT NULL,
@@ -123,7 +122,6 @@ func runTestMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 
 // Test 1: Create Catalog Item
 func TestCreateCatalogItem(t *testing.T) {
-	ctx := context.Background()
 
 	// Initialize services with test pool
 	log := logger.NewLogger(logger.LoggerConfig{DefaultLevel: "error"})
@@ -178,7 +176,6 @@ func TestCreateCatalogItem(t *testing.T) {
 
 // Test 2: Get Catalog Item by ID
 func TestGetCatalogItemByID(t *testing.T) {
-	ctx := context.Background()
 
 	// Initialize services with test pool
 	log := logger.NewLogger(logger.LoggerConfig{DefaultLevel: "error"})

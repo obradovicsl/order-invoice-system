@@ -304,15 +304,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Get Deployment Info for Rollback
-        run: |
-          # Get current image tags for all services
-          echo "CATALOG_IMAGE=$(kubectl get deployment catalog-service -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
-          echo "ORDER_IMAGE=$(kubectl get deployment order-service -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE=$(kubectl get deployment frontend -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
-
-          echo "Saved deployment state for potential rollback"
-
       - name: Get AKS Credentials
         run: |
           az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
@@ -321,6 +312,15 @@ jobs:
             --name myapp-aks-order-invoice \
             --file kubeconfig
           echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Get Deployment Info for Rollback
+        run: |
+          # Get current image tags for all services
+          echo "CATALOG_IMAGE=$(kubectl get deployment catalog-service -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
+          echo "ORDER_IMAGE=$(kubectl get deployment order-service -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=$(kubectl get deployment frontend -o jsonpath='{.spec.template.spec.containers[0].image}')" >> $GITHUB_ENV
+
+          echo "Saved deployment state for potential rollback"
 
       - name: Wait for Services to be Ready
         run: |
