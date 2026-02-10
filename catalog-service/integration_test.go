@@ -127,7 +127,7 @@ func TestCreateCatalogItem(t *testing.T) {
 	log := logger.NewLogger(logger.LoggerConfig{DefaultLevel: "error"})
 	queries := repository.New(testPool)
 	blobService, _ := service.NewBlobService(
-		"DefaultEndpointsProtocol=https;AccountName=test;AccountKey=test==;EndpointSuffix=core.windows.net",
+		"DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdEtleWZvclRlc3RpbmdQdXJwb3Nlcw==;EndpointSuffix=core.windows.net",
 		"test-container",
 		log,
 	)
@@ -181,7 +181,7 @@ func TestGetCatalogItemByID(t *testing.T) {
 	log := logger.NewLogger(logger.LoggerConfig{DefaultLevel: "error"})
 	queries := repository.New(testPool)
 	blobService, _ := service.NewBlobService(
-		"DefaultEndpointsProtocol=https;AccountName=test;AccountKey=test==;EndpointSuffix=core.windows.net",
+		"DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdEtleWZvclRlc3RpbmdQdXJwb3Nlcw==;EndpointSuffix=core.windows.net",
 		"test-container",
 		log,
 	)

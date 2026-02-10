@@ -258,7 +258,7 @@ jobs:
       - name: Verify Image Update
         run: |
           echo "Verifying that image was successfully updated..."
-          MAX_ATTEMPTS=10
+          MAX_ATTEMPTS=15
           ATTEMPT=0
           EXPECTED_IMAGE="${{ env.ACR_LOGIN_SERVER }}/invoice-worker:${{ github.sha }}"
 
@@ -267,13 +267,22 @@ jobs:
             ATTEMPT=$((ATTEMPT + 1))
             echo "Checking image (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
 
-            CURRENT_IMAGE=$(az containerapp revision list \
+            # Get the latest revision name
+            LATEST_REVISION=$(az containerapp show \
               --name invoice-worker \
               --resource-group myapp-orders-invoices \
-              --query "[0].properties.template.containers[0].image" -o tsv)
+              --query "properties.latestRevisionName" -o tsv)
 
-            echo "Expected image: $EXPECTED_IMAGE"
-            echo "Current image:  $CURRENT_IMAGE"
+            # Get the image from the latest revision
+            CURRENT_IMAGE=$(az containerapp revision show \
+              --name invoice-worker \
+              --resource-group myapp-orders-invoices \
+              --revision "$LATEST_REVISION" \
+              --query "properties.template.containers[0].image" -o tsv)
+
+            echo "Latest revision: $LATEST_REVISION"
+            echo "Expected image:  $EXPECTED_IMAGE"
+            echo "Current image:   $CURRENT_IMAGE"
 
             if [ "$CURRENT_IMAGE" = "$EXPECTED_IMAGE" ]; then
               echo "✓ Image successfully updated to: $CURRENT_IMAGE"
