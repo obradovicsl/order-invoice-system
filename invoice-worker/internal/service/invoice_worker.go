@@ -184,17 +184,25 @@ func (w *InvoiceWorker) messageToOrderResponse(msg *InvoiceMessage) (*OrderRespo
 			continue
 		}
 
+		// Parse PriceAtOrder - pgtype.Numeric is serialized as a string in JSON
+		priceAtOrder := parsePriceAtOrder(w.logger, itemMap, "price_at_order")
+
 		item := OrderItem{
-			ItemCode: getString(itemMap, "code"),
-			ItemName: getString(itemMap, "name"),
-			Quantity: int32(getFloat(itemMap, "quantity")),
+			ItemCode:     getString(itemMap, "code"),
+			ItemName:     getString(itemMap, "name"),
+			Quantity:     int32(getFloat(itemMap, "quantity")),
+			PriceAtOrder: priceAtOrder,
 		}
 		items = append(items, item)
 	}
 
-	// Create order price as pgtype.Numeric
-	// For now, just create empty numeric - invoice service should handle this
-	orderPrice := pgtype.Numeric{}
+	// Order price is not used in PDF generation - only item prices are used
+	// But we need to set it to a valid pgtype.Numeric to avoid nil pointer dereference
+	orderPrice := pgtype.Numeric{
+		Int:   nil,
+		Exp:   0,
+		Valid: false,
+	}
 
 	return &OrderResponse{
 		ID:         orderID,
@@ -223,6 +231,31 @@ func getFloat(m map[string]interface{}, key string) float64 {
 		}
 	}
 	return 0
+}
+
+func parsePriceAtOrder(logger *slog.Logger, m map[string]interface{}, key string) pgtype.Numeric {
+	if val, ok := m[key]; ok {
+		// pgtype.Numeric is serialized as a string like "100.50" in JSON
+		if s, ok := val.(string); ok {
+			// Try to parse the string as a pgtype.Numeric
+			var num pgtype.Numeric
+			if err := num.Scan(s); err != nil {
+				logger.Warn("could not parse price", "price", s, "error", err)
+				return pgtype.Numeric{Valid: false}
+			}
+			return num
+		}
+		// Also handle numeric values
+		if f, ok := val.(float64); ok {
+			num := pgtype.Numeric{}
+			if err := num.Scan(fmt.Sprintf("%.2f", f)); err != nil {
+				logger.Warn("could not parse price from float", "price", f, "error", err)
+				return pgtype.Numeric{Valid: false}
+			}
+			return num
+		}
+	}
+	return pgtype.Numeric{Valid: false}
 }
 
 // generateAndUploadInvoice generates PDF from message data and uploads to blob
