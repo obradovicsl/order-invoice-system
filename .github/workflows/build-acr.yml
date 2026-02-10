@@ -241,7 +241,7 @@ jobs:
           kubectl get deployments
     
   deploy-invoice-worker:
-    needs: [build-invoice-worker, deploy-to-aks]
+    needs: [build-invoice-worker]
     runs-on: ubuntu-latest
     steps:
       - name: Azure Login
