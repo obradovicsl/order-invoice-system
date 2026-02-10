@@ -343,16 +343,16 @@ resource "azurerm_container_app" "app" {
     max_replicas = var.invoice_worker_max_replicas
 
     azure_queue_scale_rule {
-          name         = "queue-based-scaling"
-          queue_name   = azurerm_storage_queue.invoice_queue.name
-          queue_length = 5
-          
-          authentication {
-            secret_name       = "storage-connection-string"
-            trigger_parameter = "connectionString"
-          }
-        }
+      name         = "queue-based-scaling"
+      queue_name   = azurerm_storage_queue.invoice_queue.name
+      queue_length = 5
+
+      authentication {
+        secret_name       = "storage-connection-string"
+        trigger_parameter = "connectionString"
       }
+    }
+  }
 
 
 }

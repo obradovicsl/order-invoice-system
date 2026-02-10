@@ -248,15 +248,6 @@ jobs:
         run: |
           az login -u ${{ secrets.AZURE_USERNAME }} -p ${{ secrets.AZURE_PASSWORD }} --allow-no-subscriptions
 
-      - name: Get Current Container App Revision
-        run: |
-          CURRENT_REVISION=$(az containerapp revision list \
-            --name invoice-worker \
-            --resource-group myapp-orders-invoices \
-            --query "[0].name" -o tsv)
-          echo "CURRENT_REVISION=$CURRENT_REVISION" >> $GITHUB_ENV
-          echo "Current revision: $CURRENT_REVISION"
-
       - name: Deploy to ACA
         run: |
           az containerapp update \
@@ -264,35 +255,35 @@ jobs:
             --resource-group myapp-orders-invoices \
             --image ${{ env.ACR_LOGIN_SERVER }}/invoice-worker:${{ github.sha }}
 
-      - name: Wait for New Revision
+      - name: Verify Image Update
         run: |
-          echo "Waiting for new revision to be created..."
+          echo "Verifying that image was successfully updated..."
           MAX_ATTEMPTS=10
           ATTEMPT=0
-          NEW_REVISION=""
+          EXPECTED_IMAGE="${{ env.ACR_LOGIN_SERVER }}/invoice-worker:${{ github.sha }}"
 
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             sleep 5
             ATTEMPT=$((ATTEMPT + 1))
-            echo "Checking for new revision (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
+            echo "Checking image (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
 
-            NEW_REVISION=$(az containerapp revision list \
+            CURRENT_IMAGE=$(az containerapp revision list \
               --name invoice-worker \
               --resource-group myapp-orders-invoices \
-              --query "[0].name" -o tsv)
+              --query "[0].properties.template.containers[0].image" -o tsv)
 
-            echo "Current revision: ${{ env.CURRENT_REVISION }}"
-            echo "Latest revision: $NEW_REVISION"
+            echo "Expected image: $EXPECTED_IMAGE"
+            echo "Current image:  $CURRENT_IMAGE"
 
-            if [ "$NEW_REVISION" != "${{ env.CURRENT_REVISION }}" ]; then
-              echo "✓ New revision created: $NEW_REVISION"
-              echo "NEW_REVISION=$NEW_REVISION" >> $GITHUB_ENV
+            if [ "$CURRENT_IMAGE" = "$EXPECTED_IMAGE" ]; then
+              echo "✓ Image successfully updated to: $CURRENT_IMAGE"
               exit 0
             fi
           done
 
-          echo "✗ ERROR: New revision was not created after $((MAX_ATTEMPTS * 5)) seconds!"
-          echo "Latest revision: $NEW_REVISION"
+          echo "✗ ERROR: Image was not updated to expected version after $((MAX_ATTEMPTS * 5)) seconds!"
+          echo "Expected: $EXPECTED_IMAGE"
+          echo "Got: $CURRENT_IMAGE"
           exit 1
 
       - name: Verify Container App is Ready
