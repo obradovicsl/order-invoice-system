@@ -43,7 +43,11 @@ resource "azurerm_storage_account" "storage" {
 
 // Queue
 resource "azurerm_storage_queue" "invoice_queue" {
-    name = "invoice-queue"
+    name = var.queue_name
+    storage_account_id = azurerm_storage_account.storage.id
+}
+resource "azurerm_storage_queue" "ready_queue" {
+    name = var.ready_queue_name
     storage_account_id = azurerm_storage_account.storage.id
 }
 
@@ -162,17 +166,16 @@ resource "azurerm_key_vault_secret" "storage_connection_string" {
   value        = azurerm_storage_account.storage.primary_connection_string
   key_vault_id = azurerm_key_vault.main.id
 }
-// Storage name
-resource "azurerm_key_vault_secret" "storage_connection_string" {
-  name         = "storage-name"
-  value        = azurerm_storage_account.storage.name
-  key_vault_id = azurerm_key_vault.main.id
-}
 
 // Queue name
 resource "azurerm_key_vault_secret" "queue_name" {
   name         = "queue-name"
   value        = var.queue_name
+  key_vault_id = azurerm_key_vault.main.id
+}
+resource "azurerm_key_vault_secret" "ready_queue_name" {
+  name         = "ready-queue-name"
+  value        = var.ready_queue_name
   key_vault_id = azurerm_key_vault.main.id
 }
 
@@ -323,6 +326,10 @@ resource "azurerm_container_app" "app" {
         value = azurerm_storage_queue.invoice_queue.name
       }
       env {
+        name  = "READY_QUEUE_NAME"
+        value = azurerm_storage_queue.ready_queue.name
+      }
+      env {
         name  = "ENV"
         value = var.environment
       }
@@ -334,7 +341,20 @@ resource "azurerm_container_app" "app" {
 
     min_replicas = var.invoice_worker_min_replicas
     max_replicas = var.invoice_worker_max_replicas
-  }
+
+    azure_queue_scale_rule {
+          name         = "queue-based-scaling"
+          queue_name   = azurerm_storage_queue.invoice_queue.name
+          queue_length = 5
+          
+          authentication {
+            secret_name       = "storage-connection-string"
+            trigger_parameter = "connectionString"
+          }
+        }
+      }
+
+
 }
 
 // ============== OUTPUTS ================

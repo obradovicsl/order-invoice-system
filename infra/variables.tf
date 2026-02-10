@@ -70,6 +70,11 @@ variable "queue_name" {
   type        = string
   default     = "invoice-queue"
 }
+variable "ready_queue_name" {
+  description = "Azure Storage Queue name (lowercase, 3-63 chars)"
+  type        = string
+  default     = "ready-queue"
+}
 variable "invoices_blob_name" {
   description = "Azure Storage Blob container for PDF invoices"
   type        = string

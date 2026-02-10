@@ -4,47 +4,47 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"invoice-worker/internal/repository"
 	"log/slog"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// InvoiceMessage represents the message format in the queue
+// InvoiceMessage represents the complete order data message from queue
 type InvoiceMessage struct {
-	OrderID   string `json:"order_id"`
-	Timestamp int64  `json:"timestamp"`
-	MessageID string `json:"message_id"`
+	OrderID    string          `json:"order_id"`
+	UserID     string          `json:"user_id"`
+	UserName   string          `json:"user_name"`
+	OrderPrice interface{}     `json:"order_price"`
+	Items      []interface{}   `json:"items"`
+	Timestamp  int64           `json:"timestamp"`
+	MessageID  string          `json:"message_id"`
 }
 
 type InvoiceWorker struct {
-	queueService   *QueueService
-	blobService    *BlobService
-	invoiceService *InvoiceService
-	orderService   *OrderService
-	dbPool         *pgxpool.Pool
-	queueName      string
-	logger         *slog.Logger
+	queueService    *QueueService
+	blobService     *BlobService
+	invoiceService  *InvoiceService
+	queueName       string
+	readyQueueName  string
+	logger          *slog.Logger
 }
 
 func NewInvoiceWorker(
 	queueService *QueueService,
 	blobService *BlobService,
 	invoiceService *InvoiceService,
-	orderService *OrderService,
-	dbPool *pgxpool.Pool,
 	queueName string,
+	readyQueueName string,
 	logger *slog.Logger,
 ) *InvoiceWorker {
 	return &InvoiceWorker{
-		queueService:   queueService,
-		blobService:    blobService,
-		invoiceService: invoiceService,
-		orderService:   orderService,
-		dbPool:         dbPool,
-		queueName:      queueName,
-		logger:         logger,
+		queueService:    queueService,
+		blobService:     blobService,
+		invoiceService:  invoiceService,
+		queueName:       queueName,
+		readyQueueName:  readyQueueName,
+		logger:          logger,
 	}
 }
 
@@ -95,17 +95,6 @@ func (w *InvoiceWorker) processMessages(ctx context.Context) {
 		return
 	}
 
-	// Update order status to PROCESSING
-	w.logger.Info("updating order status to PROCESSING", "order_id", invoiceMsg.OrderID)
-	if err := w.orderService.UpdateOrderStatus(ctx, invoiceMsg.OrderID, repository.OrderStatusPROCESSING); err != nil {
-		w.logger.Error("failed to update order status to PROCESSING",
-			"order_id", invoiceMsg.OrderID,
-			"error", err,
-		)
-		// Don't delete on error - let it retry
-		return
-	}
-
 	// Process the invoice
 	if err := w.generateAndUploadInvoice(ctx, invoiceMsg); err != nil {
 		w.logger.Error("failed to process invoice",
@@ -117,10 +106,10 @@ func (w *InvoiceWorker) processMessages(ctx context.Context) {
 		return
 	}
 
-	// Update order status to COMPLETED
-	w.logger.Info("updating order status to COMPLETED", "order_id", invoiceMsg.OrderID)
-	if err := w.orderService.UpdateOrderStatus(ctx, invoiceMsg.OrderID, repository.OrderStatusCOMPLETED); err != nil {
-		w.logger.Error("failed to update order status to COMPLETED",
+	// Send completion message to ready queue
+	w.logger.Info("sending completion message to ready queue", "order_id", invoiceMsg.OrderID)
+	if err := w.sendCompletionMessage(ctx, invoiceMsg.OrderID); err != nil {
+		w.logger.Error("failed to send completion message",
 			"order_id", invoiceMsg.OrderID,
 			"error", err,
 		)
@@ -172,18 +161,78 @@ func (w *InvoiceWorker) parseMessage(messageText string) (*InvoiceMessage, error
 	return &msg, nil
 }
 
-// generateAndUploadInvoice retrieves order data, generates PDF, and uploads to blob
+// messageToOrderResponse converts InvoiceMessage to OrderResponse for PDF generation
+func (w *InvoiceWorker) messageToOrderResponse(msg *InvoiceMessage) (*OrderResponse, error) {
+	// Parse order ID to UUID
+	var orderID pgtype.UUID
+	if err := orderID.Scan(msg.OrderID); err != nil {
+		w.logger.Warn("could not parse order ID as UUID", "order_id", msg.OrderID)
+	}
+
+	// Parse user ID to UUID
+	var userID pgtype.UUID
+	if err := userID.Scan(msg.UserID); err != nil {
+		w.logger.Warn("could not parse user ID as UUID", "user_id", msg.UserID)
+	}
+
+	// Convert items from interface{} to OrderItem
+	items := make([]OrderItem, 0)
+	for _, itemData := range msg.Items {
+		itemMap, ok := itemData.(map[string]interface{})
+		if !ok {
+			w.logger.Warn("could not convert item data", "item", itemData)
+			continue
+		}
+
+		item := OrderItem{
+			ItemCode: getString(itemMap, "code"),
+			ItemName: getString(itemMap, "name"),
+			Quantity: int32(getFloat(itemMap, "quantity")),
+		}
+		items = append(items, item)
+	}
+
+	// Create order price as pgtype.Numeric
+	// For now, just create empty numeric - invoice service should handle this
+	orderPrice := pgtype.Numeric{}
+
+	return &OrderResponse{
+		ID:         orderID,
+		UserID:     userID,
+		UserName:   msg.UserName,
+		OrderPrice: orderPrice,
+		Status:     "PENDING",
+		Items:      items,
+	}, nil
+}
+
+// Helper functions to extract values from interface{} maps
+func getString(m map[string]interface{}, key string) string {
+	if val, ok := m[key]; ok {
+		if s, ok := val.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func getFloat(m map[string]interface{}, key string) float64 {
+	if val, ok := m[key]; ok {
+		if f, ok := val.(float64); ok {
+			return f
+		}
+	}
+	return 0
+}
+
+// generateAndUploadInvoice generates PDF from message data and uploads to blob
 func (w *InvoiceWorker) generateAndUploadInvoice(ctx context.Context, msg *InvoiceMessage) error {
 	w.logger.Info("generating invoice for order", "order_id", msg.OrderID)
 
-	// Fetch order from database
-	orderResp, err := w.orderService.GetOrderByID(ctx, msg.OrderID)
+	// Convert message data to OrderResponse
+	orderResp, err := w.messageToOrderResponse(msg)
 	if err != nil {
-		return fmt.Errorf("failed to fetch order: %w", err)
-	}
-
-	if orderResp == nil {
-		return fmt.Errorf("order not found")
+		return fmt.Errorf("failed to convert message data: %w", err)
 	}
 
 	// Generate PDF
@@ -210,6 +259,35 @@ func (w *InvoiceWorker) generateAndUploadInvoice(ctx context.Context, msg *Invoi
 		"order_id", msg.OrderID,
 		"filename", filename,
 		"size", len(pdfData),
+	)
+
+	return nil
+}
+
+// sendCompletionMessage sends a completion message to the ready queue
+func (w *InvoiceWorker) sendCompletionMessage(ctx context.Context, orderID string) error {
+	timestamp := time.Now().Unix()
+	messageID := fmt.Sprintf("completed_%s_%d", orderID, timestamp)
+
+	message := map[string]interface{}{
+		"order_id":   orderID,
+		"timestamp":  timestamp,
+		"message_id": messageID,
+	}
+
+	messageText, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal completion message: %w", err)
+	}
+
+	_, err = w.queueService.SendMessage(ctx, w.readyQueueName, string(messageText), 0)
+	if err != nil {
+		return fmt.Errorf("failed to send completion message: %w", err)
+	}
+
+	w.logger.Info("completion message sent to ready queue",
+		"order_id", orderID,
+		"message_id", messageID,
 	)
 
 	return nil

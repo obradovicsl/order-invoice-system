@@ -29,6 +29,7 @@ type AzureConfig struct {
 	StorageConnectionString string
 	BlobContainerName       string
 	QueueName               string
+	ReadyQueueName          string
 }
 
 func NewConfig() *Config {
@@ -83,5 +84,6 @@ func loadAzureConfig() AzureConfig {
 		StorageConnectionString: loader.GetEnvOrCrash("AZURE_STORAGE_CONNECTION_STRING"),
 		BlobContainerName:       loader.GetEnv("BLOB_CONTAINER_NAME", "invoices"),
 		QueueName:               loader.GetEnv("QUEUE_NAME", "invoice-queue"),
+		ReadyQueueName:          loader.GetEnv("READY_QUEUE_NAME", "ready-queue"),
 	}
 }

@@ -14,11 +14,6 @@ type QueueService struct {
 	logger           *slog.Logger
 }
 
-type SendMessageInput struct {
-	QueueName   string
-	MessageText string
-	TTL         int32 // Time to live in seconds (optional, default is 604800 - 7 days)
-}
 
 type QueueMessage struct {
 	MessageID       string
@@ -38,30 +33,30 @@ func NewQueueService(connectionString string, logger *slog.Logger) (*QueueServic
 }
 
 // SendMessage sends a message to Azure Queue Storage
-func (qs *QueueService) SendMessage(ctx context.Context, input SendMessageInput) (string, error) {
+func (qs *QueueService) SendMessage(ctx context.Context, queueName string, messageText string, ttl int32) (string, error) {
 	qs.logger.Info("sending message to queue",
-		"queue", input.QueueName,
-		"message_length", len(input.MessageText),
+		"queue", queueName,
+		"message_length", len(messageText),
 	)
 
 	queueClient, err := azqueue.NewQueueClientFromConnectionString(
 		qs.connectionString,
-		input.QueueName,
+		queueName,
 		nil,
 	)
 	if err != nil {
-		qs.logger.Error("failed to create queue client", "queue", input.QueueName, "error", err)
+		qs.logger.Error("failed to create queue client", "queue", queueName, "error", err)
 		return "", err
 	}
 
 	sendOptions := &azqueue.EnqueueMessageOptions{}
-	if input.TTL > 0 {
-		sendOptions.TimeToLive = &input.TTL
+	if ttl > 0 {
+		sendOptions.TimeToLive = &ttl
 	}
 
-	response, err := queueClient.EnqueueMessage(ctx, input.MessageText, sendOptions)
+	response, err := queueClient.EnqueueMessage(ctx, messageText, sendOptions)
 	if err != nil {
-		qs.logger.Error("failed to send message", "queue", input.QueueName, "error", err)
+		qs.logger.Error("failed to send message", "queue", queueName, "error", err)
 		return "", fmt.Errorf("failed to send message: %w", err)
 	}
 
@@ -72,7 +67,7 @@ func (qs *QueueService) SendMessage(ctx context.Context, input SendMessageInput)
 	messageID := *response.Messages[0].MessageID
 
 	qs.logger.Info("message sent successfully",
-		"queue", input.QueueName,
+		"queue", queueName,
 		"message_id", messageID,
 	)
 
@@ -240,17 +235,13 @@ func (qs *QueueService) PeekMessage(ctx context.Context, queueName string) (*Que
 }
 
 // SendMessageWithEncoding sends a Base64 encoded message to the queue
-func (qs *QueueService) SendMessageWithEncoding(ctx context.Context, input SendMessageInput) (string, error) {
+func (qs *QueueService) SendMessageWithEncoding(ctx context.Context, queueName string, messageText string, ttl int32) (string, error) {
 	qs.logger.Info("sending encoded message to queue",
-		"queue", input.QueueName,
-		"message_length", len(input.MessageText),
+		"queue", queueName,
+		"message_length", len(messageText),
 	)
 
-	encodedMessage := base64.StdEncoding.EncodeToString([]byte(input.MessageText))
+	encodedMessage := base64.StdEncoding.EncodeToString([]byte(messageText))
 
-	return qs.SendMessage(ctx, SendMessageInput{
-		QueueName:   input.QueueName,
-		MessageText: encodedMessage,
-		TTL:         input.TTL,
-	})
+	return qs.SendMessage(ctx, queueName, encodedMessage, ttl)
 }

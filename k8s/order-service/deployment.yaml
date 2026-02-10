@@ -64,6 +64,11 @@ spec:
               secretKeyRef:
                 name: azure-storage-secret
                 key: QUEUE_NAME
+          - name: READY_QUEUE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: azure-storage-secret
+                key: READY_QUEUE_NAME
 
           volumeMounts:
           - name: secrets-store

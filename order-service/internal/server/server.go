@@ -18,10 +18,13 @@ import (
 )
 
 type Server struct {
-	Port   string
-	Logger *slog.Logger
-	Router http.Handler
-	pool   *pgxpool.Pool
+	Port             string
+	Logger           *slog.Logger
+	Router           http.Handler
+	pool             *pgxpool.Pool
+	completionWorker *service.OrderCompletionWorker
+	workerCtx        context.Context
+	workerCancel     context.CancelFunc
 }
 
 func NewServer(config *config.Config, logger *slog.Logger) *Server {
@@ -53,13 +56,28 @@ func NewServer(config *config.Config, logger *slog.Logger) *Server {
 	logger.Info("Initializing order service")
 	orderService := order.NewService(queries, logger, queueService, config.Azure.QueueName, blobService, config.Azure.BlobContainerName)
 
+	logger.Info("Initializing order completion worker")
+	completionWorker := service.NewOrderCompletionWorker(queueService, queries, pool, config.Azure.ReadyQueueName, logger)
+
+	// Validate ready queue
+	validationCtx, validationCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := completionWorker.ValidateQueue(validationCtx); err != nil {
+		logger.Warn("Ready queue validation warning", "error", err)
+	}
+	validationCancel()
+
 	router := NewRouter(*config, orderService, logger)
 
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+
 	return &Server{
-		Port:   config.Port,
-		Logger: logger,
-		Router: router,
-		pool:   pool,
+		Port:             config.Port,
+		Logger:           logger,
+		Router:           router,
+		pool:             pool,
+		completionWorker: completionWorker,
+		workerCtx:        workerCtx,
+		workerCancel:     workerCancel,
 	}
 }
 
@@ -84,11 +102,26 @@ func (serverInstance *Server) Start() error {
 		serverErrors <- server.ListenAndServe()
 	}()
 
-	// Wait for either server error or shutdown signal
+	// Run completion worker in a goroutine
+	const workerPollInterval = 2 * time.Second
+	serverInstance.Logger.Info("Starting order completion worker",
+		"poll_interval", workerPollInterval.String(),
+	)
+	workerErrors := make(chan error, 1)
+	go func() {
+		workerErrors <- serverInstance.completionWorker.Start(serverInstance.workerCtx, workerPollInterval)
+	}()
+
+	// Wait for either server error, worker error, or shutdown signal
 	select {
 	case err := <-serverErrors:
 		if err != nil && err != http.ErrServerClosed {
 			serverInstance.Logger.Error("Server error", "error", err)
+			return err
+		}
+	case err := <-workerErrors:
+		if err != nil {
+			serverInstance.Logger.Error("Worker error", "error", err)
 			return err
 		}
 	case sig := <-sigChan:
@@ -99,7 +132,8 @@ func (serverInstance *Server) Start() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	serverInstance.Logger.Info("Shutting down server gracefully")
+	serverInstance.Logger.Info("Shutting down server and worker gracefully")
+	serverInstance.workerCancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		serverInstance.Logger.Error("Error during server shutdown", "error", err)
 	}
@@ -108,6 +142,6 @@ func (serverInstance *Server) Start() error {
 	serverInstance.Logger.Info("Closing database connection")
 	serverInstance.pool.Close()
 
-	serverInstance.Logger.Info("Server shutdown complete")
+	serverInstance.Logger.Info("Server and worker shutdown complete")
 	return nil
 }

@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"invoice-worker/internal/config"
-	"invoice-worker/internal/database"
 	"invoice-worker/internal/logger"
-	"invoice-worker/internal/repository"
 	"invoice-worker/internal/service"
 	"os"
 	"os/signal"
@@ -24,18 +22,6 @@ func main() {
 
 	log.Info("Initializing invoice worker")
 
-	// Initialize database
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	log.Info("Connecting to database")
-	pool, err := database.NewPool(ctx, cfg.Database, log)
-	if err != nil {
-		log.Error("Failed to connect to database", "error", err)
-		os.Exit(1)
-	}
-	defer pool.Close()
-
 	log.Info("Initializing Azure services")
 
 	// Initialize Queue Service
@@ -51,7 +37,7 @@ func main() {
 		cfg.Azure.BlobContainerName,
 		log,
 	)
-	
+
 	if err != nil {
 		log.Error("Failed to initialize blob service", "error", err)
 		os.Exit(1)
@@ -60,20 +46,14 @@ func main() {
 	// Initialize Invoice Service
 	invoiceService := service.NewInvoiceService(log)
 
-	// Initialize repository and order service
-	log.Info("Initializing order service")
-	queries := repository.New(pool)
-	orderService := service.NewOrderService(queries, log)
-
 	// Initialize Invoice Worker
 	log.Info("Initializing invoice worker")
 	invoiceWorker := service.NewInvoiceWorker(
 		queueService,
 		blobService,
 		invoiceService,
-		orderService,
-		pool,
 		cfg.Azure.QueueName,
+		cfg.Azure.ReadyQueueName,
 		log,
 	)
 

@@ -346,7 +346,17 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Ord
 	)
 
 	// Send invoice generation message to queue
-	if err := s.sendInvoiceMessage(ctx, order.ID.String()); err != nil {
+	orderResp := &OrderResponse{
+		ID:         order.ID,
+		UserID:     order.UserID,
+		UserName:   order.UserName,
+		Status:     string(order.Status),
+		OrderPrice: order.OrderPrice,
+		Items:      orderItems,
+		CreatedAt:  order.CreatedAt,
+		UpdatedAt:  order.UpdatedAt,
+	}
+	if err := s.sendInvoiceMessage(ctx, orderResp); err != nil {
 		s.logger.Error("failed to send invoice message",
 			"order_id", order.ID.String(),
 			"error", err,
@@ -366,15 +376,19 @@ func (s *Service) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Ord
 	}, nil
 }
 
-// sendInvoiceMessage sends an invoice generation message to the queue
-func (s *Service) sendInvoiceMessage(ctx context.Context, orderID string) error {
+// sendInvoiceMessage sends an invoice generation message to the queue with complete order data
+func (s *Service) sendInvoiceMessage(ctx context.Context, order *OrderResponse) error {
 	timestamp := time.Now().Unix()
-	messageID := fmt.Sprintf("%s_%d", orderID, timestamp)
+	messageID := fmt.Sprintf("%s_%d", order.ID.String(), timestamp)
 
 	message := map[string]interface{}{
-		"order_id":   orderID,
-		"timestamp":  timestamp,
-		"message_id": messageID,
+		"order_id":    order.ID.String(),
+		"user_id":     order.UserID.String(),
+		"user_name":   order.UserName,
+		"order_price": order.OrderPrice,
+		"items":       order.Items,
+		"timestamp":   timestamp,
+		"message_id":  messageID,
 	}
 
 	messageText, err := json.Marshal(message)
@@ -382,16 +396,13 @@ func (s *Service) sendInvoiceMessage(ctx context.Context, orderID string) error 
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	_, err = s.queueService.SendMessage(ctx, service.SendMessageInput{
-		QueueName:   s.queueName,
-		MessageText: string(messageText),
-	})
+	_, err = s.queueService.SendMessage(ctx, s.queueName, string(messageText), 0)
 	if err != nil {
 		return fmt.Errorf("failed to send queue message: %w", err)
 	}
 
 	s.logger.Info("invoice message sent to queue",
-		"order_id", orderID,
+		"order_id", order.ID.String(),
 		"message_id", messageID,
 	)
 

@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"order-service/internal/repository"
-	"order-service/internal/service"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -82,12 +81,12 @@ func (m *MockOrderRepository) UpdateOrderStatus(ctx context.Context, arg reposit
 
 // MockQueueService for testing
 type MockQueueService struct {
-	sendMessageFunc func(ctx context.Context, input service.SendMessageInput) (string, error)
+	sendMessageFunc func(ctx context.Context, queueName string, messageText string, ttl int32) (string, error)
 }
 
-func (m *MockQueueService) SendMessage(ctx context.Context, input service.SendMessageInput) (string, error) {
+func (m *MockQueueService) SendMessage(ctx context.Context, queueName string, messageText string, ttl int32) (string, error) {
 	if m.sendMessageFunc != nil {
-		return m.sendMessageFunc(ctx, input)
+		return m.sendMessageFunc(ctx, queueName, messageText, ttl)
 	}
 	return "message-id", nil
 }
