@@ -349,7 +349,7 @@ resource "azurerm_container_app" "app" {
 
       authentication {
         secret_name       = "storage-connection-string"
-        trigger_parameter = "connectionString"
+        trigger_parameter = "connection"
       }
     }
   }

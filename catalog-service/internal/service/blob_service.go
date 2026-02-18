@@ -287,30 +287,15 @@ func (bs *BlobService) GenerateUploadSignedURL(containerName string, blobName st
 		uploadQueryParams.Encode(),
 	)
 
-	// Create SAS signature values for download (Read permissions, 24-hour expiry)
-	downloadPermissions := sas.BlobPermissions{Read: true}
-	downloadSasValues := sas.BlobSignatureValues{
-		Protocol:      sas.ProtocolHTTPS,
-		StartTime:     time.Now().UTC().Add(-5 * time.Minute),
-		ExpiryTime:    time.Now().UTC().Add(24 * time.Hour),
-		Permissions:   downloadPermissions.String(),
-		ContainerName: containerName,
-		BlobName:      uniqueBlobName,
-	}
-
-	// Sign download URL
-	downloadQueryParams, err := downloadSasValues.SignWithSharedKey(credential)
-	if err != nil {
-		bs.logger.Error("failed to sign download SAS token", "error", err)
-		return "", "", fmt.Errorf("failed to sign download SAS: %w", err)
-	}
-
-	// Construct the download URL
-	downloadURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
+	downloadURL := fmt.Sprintf(
+		"https://%s.blob.core.windows.net/%s/%s",
 		accountName,
 		containerName,
 		uniqueBlobName,
-		downloadQueryParams.Encode(),
+	)
+
+	bs.logger.Info("upload URL and public download URL generated successfully",
+		"blob_name", uniqueBlobName,
 	)
 
 	bs.logger.Info("signed URLs generated successfully", "blob_name", uniqueBlobName)

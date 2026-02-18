@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: postgres
 spec:
-  type: LoadBalancer 
+  type: NodeIP 
   ports:
-  - port: 5432 # Inside cluster
-    targetPort: 5432 # PostgreSQL container
+  - port: 5432 
+    targetPort: 5432 
   selector:
     app: postgres
