@@ -49,16 +49,6 @@ func (is *InvoiceService) GenerateInvoicePDF(orderData *OrderResponse) ([]byte, 
 	pdf.SetFont("Arial", "", 10)
 	pdf.CellFormat(0, 7, orderData.UserName, "", 1, "L", false, 0, "")
 
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(40, 7, "Date:", "", 0, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(0, 7, orderData.CreatedAt.Time.Format("2006-01-02"), "", 1, "L", false, 0, "")
-
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(40, 7, "Status:", "", 0, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(0, 7, orderData.Status, "", 1, "L", false, 0, "")
-
 	// Items table
 	pdf.Ln(5)
 	pdf.SetFont("Arial", "B", 10)
